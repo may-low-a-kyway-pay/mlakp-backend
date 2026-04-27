@@ -30,6 +30,24 @@ The system does **not handle real money transfers**. It only records and tracks 
 
 ## 3. Functional Requirements
 
+### 3.0 Users and Groups
+Users can:
+- Register and log in
+- View their own profile
+- Create groups
+- View groups they belong to
+- Add members to groups they own
+
+Group rules:
+- A group has one creator.
+- The group creator is the initial owner.
+- A group member can create expenses for that group.
+- Only a group owner can add members.
+- A payer and all participants must be group members for group expenses.
+- Historical expenses, debts, and payments remain visible to involved users even if membership rules are expanded later.
+
+---
+
 ### 3.1 Expense Creation
 Users can create an expense with:
 - Title
@@ -38,6 +56,13 @@ Users can create an expense with:
 - Participants
 - Split type (Equal / Manual)
 - Optional: description, date, receipt
+
+Rules:
+- For MVP, expenses are created inside a group.
+- Payer may be included in participants.
+- If payer is included in participants, payer's own share does not create a self-debt.
+- If payer is not included in participants, payer has no share.
+- At least one participant other than the payer is required for the expense to create a debt.
 
 ---
 
@@ -59,6 +84,9 @@ Sum of shares = Total amount
 
 - System generates debts for each participant (excluding payer’s share)
 - Initial status: **Pending**
+- Debts are generated at expense creation time
+- Debt amount equals the participant's share amount
+- Creditor is the expense payer
 
 ---
 
@@ -103,6 +131,22 @@ Users can view:
 #### You Get:
 - Total amount others owe the user
 
+Dashboard rules:
+- Include only Accepted and Partially Settled debts.
+- Exclude Pending, Rejected, and Settled debts.
+- Use remaining debt amount, not original debt amount.
+
+---
+
+### 3.8 Expense Changes
+
+For MVP:
+- Expenses cannot be edited after creation.
+- Expenses cannot be deleted after creation.
+- If correction is needed, users must create a new expense or record the appropriate settlement outside the app.
+
+Future versions may support cancellation or correction flows, but they must preserve audit history.
+
 ---
 
 ## 4. Status Definitions
@@ -137,15 +181,18 @@ Users can view:
 - System does not process real money
 - Pending debts (not accepted) must not be included in dashboard totals
 - If all debtors reject, the expense has no financial effect
-- Expenses cannot be edited or deleted once any debt is accepted
+- Expenses cannot be edited or deleted in the MVP
 - System must handle rounding differences to ensure total equals expense amount
 - All amounts are assumed to be in a single currency
 - A debt can have multiple payment records
 - Total confirmed payments must not exceed debt amount
+- Pending payments plus confirmed payments must not exceed remaining debt
 - Only debtor can accept/reject debt
 - Only debtor can mark payment
 - Only creditor can confirm/reject payment
 - Payer may be included in participants but does not create self-debt
+- Payment and debt history must remain available for audit purposes
+- Users must not be able to view or mutate groups, expenses, debts, or payments they are not authorized to access
 
 --- 
 
@@ -167,6 +214,8 @@ Debtor Pays → Mark as Paid → Creditor Confirms → Debt Updated
 
 ## 7. MVP Scope
 
+- User registration and login
+- Group creation and member management
 - Expense creation **(equal + manual split)**
 - Debt tracking
 - Debt acceptance/rejection
