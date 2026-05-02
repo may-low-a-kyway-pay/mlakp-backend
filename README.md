@@ -38,6 +38,33 @@ Download Go dependencies:
 go mod download
 ```
 
+Install the migration CLI used by `make migrate-up`:
+
+```sh
+go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+```
+
+Verify it is available in your shell:
+
+```sh
+command -v migrate
+migrate -version
+```
+
+If `command -v migrate` prints nothing, make sure your Go binary directory is in `PATH`:
+
+```sh
+export PATH="$(go env GOPATH)/bin:$PATH"
+```
+
+Add that `PATH` export to your shell profile if needed.
+
+Install `sqlc` only if you need to regenerate database query code:
+
+```sh
+go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+```
+
 Create your local environment file from the example:
 
 ```sh
