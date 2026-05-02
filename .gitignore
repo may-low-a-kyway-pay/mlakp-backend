@@ -1,0 +1,25 @@
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Go build/test outputs
+/bin/
+/dist/
+/tmp/
+*.test
+*.out
+coverage.out
+coverage.html
+
+# Go workspace/cache files
+go.work
+go.work.sum
+
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/
+
+# Codex/local agent state
+.codex
