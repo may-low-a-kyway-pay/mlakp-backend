@@ -12,7 +12,7 @@ func TestTokenManagerIssuesAndValidatesAccessToken(t *testing.T) {
 		return time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC)
 	}
 
-	token, expiresAt, err := manager.IssueAccessToken(context.Background(), "user-1")
+	token, expiresAt, err := manager.IssueAccessToken(context.Background(), "user-1", "session-1")
 	if err != nil {
 		t.Fatalf("IssueAccessToken() error = %v", err)
 	}
@@ -27,6 +27,12 @@ func TestTokenManagerIssuesAndValidatesAccessToken(t *testing.T) {
 	if claims.Subject != "user-1" {
 		t.Fatalf("claims.Subject = %q, want user-1", claims.Subject)
 	}
+	if claims.SessionID != "session-1" {
+		t.Fatalf("claims.SessionID = %q, want session-1", claims.SessionID)
+	}
+	if claims.TokenID == "" {
+		t.Fatal("claims.TokenID is empty")
+	}
 	if claims.Issuer != "mlakp-backend" || claims.Audience != "mlakp-api" {
 		t.Fatalf("claims issuer/audience = %q/%q, want configured values", claims.Issuer, claims.Audience)
 	}
@@ -34,7 +40,7 @@ func TestTokenManagerIssuesAndValidatesAccessToken(t *testing.T) {
 
 func TestTokenManagerRejectsTamperedToken(t *testing.T) {
 	manager := NewTokenManager("mlakp-backend", "mlakp-api", "test-secret", 15*time.Minute)
-	token, _, err := manager.IssueAccessToken(context.Background(), "user-1")
+	token, _, err := manager.IssueAccessToken(context.Background(), "user-1", "session-1")
 	if err != nil {
 		t.Fatalf("IssueAccessToken() error = %v", err)
 	}
@@ -51,7 +57,7 @@ func TestTokenManagerRejectsExpiredToken(t *testing.T) {
 		return now
 	}
 
-	token, _, err := manager.IssueAccessToken(context.Background(), "user-1")
+	token, _, err := manager.IssueAccessToken(context.Background(), "user-1", "session-1")
 	if err != nil {
 		t.Fatalf("IssueAccessToken() error = %v", err)
 	}

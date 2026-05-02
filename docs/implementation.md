@@ -144,6 +144,7 @@ mlakp-backend/
 │   │   ├── response/
 │   │   └── handlers/
 │   ├── auth/
+│   ├── sessions/
 │   ├── users/
 │   ├── groups/
 │   ├── expenses/
@@ -157,9 +158,12 @@ mlakp-backend/
 │       └── sqlc/
 ├── migrations/
 │   ├── 000001_init.up.sql
-│   └── 000001_init.down.sql
+│   ├── 000001_init.down.sql
+│   ├── 000002_auth_sessions.up.sql
+│   └── 000002_auth_sessions.down.sql
 ├── queries/
 │   ├── users.sql
+│   ├── auth_sessions.sql
 │   ├── groups.sql
 │   ├── expenses.sql
 │   ├── debts.sql
@@ -256,6 +260,8 @@ Recommended indexes:
 - `debts(creditor_id, status)`.
 - `debts(expense_id)`.
 - `payments(debt_id, status)`.
+- `auth_sessions(user_id, revoked_at)`.
+- `auth_sessions(refresh_token_hash)`.
 
 Recommended PostgreSQL extensions:
 
@@ -264,6 +270,32 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 ```
 
 Use `gen_random_uuid()` for primary keys unless app-side IDs become necessary.
+
+Session table requirements:
+- Store server-side login sessions in `auth_sessions`.
+- Use one session row per logged-in client/device.
+- Store only a hash of the refresh token, never the raw refresh token.
+- Include `user_id`, `refresh_token_hash`, `created_at`, `expires_at`, `revoked_at`, and `last_used_at`.
+- Treat `revoked_at IS NOT NULL` or `expires_at <= now()` as an inactive session.
+- Use restrictive user delete behavior unless a deliberate account-deletion flow is added.
+
+Recommended schema:
+
+```sql
+CREATE TABLE auth_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  refresh_token_hash text NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL,
+  revoked_at timestamptz,
+  last_used_at timestamptz,
+  CHECK (expires_at > created_at)
+);
+
+CREATE INDEX idx_auth_sessions_user_active
+  ON auth_sessions (user_id, revoked_at);
+```
 
 ---
 
@@ -367,6 +399,7 @@ Use versioned API routes:
 POST   /v1/auth/register
 POST   /v1/auth/login
 POST   /v1/auth/logout
+POST   /v1/auth/refresh
 GET    /v1/users/me
 
 POST   /v1/groups
@@ -393,6 +426,8 @@ GET    /readyz
 
 Rules:
 - All non-auth routes require authentication.
+- `POST /v1/auth/logout` requires authentication because it revokes the current session.
+- `POST /v1/auth/refresh` uses the refresh token, not an access-token bearer check.
 - All group/expense/debt/payment routes require authorization checks.
 - Path IDs must be validated.
 - Use consistent JSON response envelopes.
@@ -406,20 +441,43 @@ Authentication requirements:
 - Store only password hashes.
 - Hash passwords with bcrypt.
 - Never log passwords, token values, or password hashes.
-- Access tokens must expire.
-- Use standard library HMAC signing for MVP access tokens.
-- Validate token signature, expiry, issuer, audience, and subject.
-- For MVP, logout is client-side token discard unless a token denylist or session table is explicitly added.
+- Access tokens must be short-lived.
+- Use standard library HMAC signing for access tokens.
+- Validate token signature, expiry, issuer, audience, subject, session ID, and token ID.
+- Persist login sessions server-side so logout can invalidate tokens before access-token expiry.
+- Refresh tokens must be opaque random values stored only as server-side hashes.
+- Revoke the current session on logout by setting `auth_sessions.revoked_at`.
+- Reject access tokens whose session is missing, expired, or revoked.
 - Production deployments should add rate limiting to auth endpoints.
 - Password reset and email verification are outside MVP scope unless explicitly added.
 
-MVP token requirements:
-- Token payload must include `sub` user ID, `iss`, `aud`, `exp`, and `iat`.
+Access token requirements:
+- Token payload must include `sub` user ID, `sid` session ID, `jti` token ID, `iss`, `aud`, `exp`, and `iat`.
 - Token signature must use `crypto/hmac` with `crypto/sha256`.
 - Token encoding must use URL-safe base64.
 - Token comparison must use constant-time comparison.
 - Expired or malformed tokens must be rejected.
 - Token secret must come from configuration and must not be logged.
+- Access-token TTL should stay short, for example 5 to 15 minutes.
+- Access-token validation must check both the token claims and the backing session state.
+
+Session and refresh-token requirements:
+- Register and login create a new active session.
+- Register and login return an access token and a refresh token.
+- Refresh consumes a valid refresh token, verifies its stored hash, rotates it, and returns a new access token plus refresh token.
+- Refresh-token rotation must invalidate the previous refresh token for that session.
+- Reuse of an already rotated refresh token must be rejected.
+- Logout revokes only the current session.
+- A separate logout-all-devices flow may revoke all active sessions for the authenticated user.
+- Session checks may be skipped only for explicitly public routes.
+- Do not store full access tokens or refresh tokens in logs or database rows.
+
+Server-side invalidation model:
+- Preferred invalidation mechanism is session revocation, not a permanent access-token denylist.
+- Middleware first validates the access-token signature and claims.
+- Middleware then checks `auth_sessions.id = claims.sid`.
+- If `revoked_at IS NOT NULL` or `expires_at <= now()`, return `401 Unauthorized`.
+- A short-lived access-token denylist may be added later only for emergency revocation by `jti`; denylist rows must expire at the access token's `exp`.
 
 Authorization requirements:
 - Only group members can view group expenses.
@@ -586,6 +644,7 @@ TOKEN_ISSUER=mlakp-backend
 TOKEN_AUDIENCE=mlakp-api
 TOKEN_SECRET=...
 ACCESS_TOKEN_TTL=15m
+REFRESH_TOKEN_TTL=720h
 READ_TIMEOUT=5s
 WRITE_TIMEOUT=10s
 IDLE_TIMEOUT=60s

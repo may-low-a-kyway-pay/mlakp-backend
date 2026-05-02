@@ -23,6 +23,9 @@ func TestLoadValidConfig(t *testing.T) {
 	if cfg.AccessTokenTTL != 15*time.Minute {
 		t.Fatalf("AccessTokenTTL = %s, want 15m", cfg.AccessTokenTTL)
 	}
+	if cfg.RefreshTokenTTL != 720*time.Hour {
+		t.Fatalf("RefreshTokenTTL = %s, want 720h", cfg.RefreshTokenTTL)
+	}
 }
 
 func TestLoadReportsMissingRequiredValues(t *testing.T) {
@@ -75,6 +78,7 @@ func setValidEnv(t *testing.T) {
 	t.Setenv("TOKEN_AUDIENCE", "mlakp-api")
 	t.Setenv("TOKEN_SECRET", "local-development-secret")
 	t.Setenv("ACCESS_TOKEN_TTL", "15m")
+	t.Setenv("REFRESH_TOKEN_TTL", "720h")
 	t.Setenv("READ_TIMEOUT", "5s")
 	t.Setenv("WRITE_TIMEOUT", "10s")
 	t.Setenv("IDLE_TIMEOUT", "60s")

@@ -17,6 +17,7 @@ import (
 	"mlakp-backend/internal/httpapi/handlers"
 	"mlakp-backend/internal/postgres"
 	"mlakp-backend/internal/postgres/sqlc"
+	"mlakp-backend/internal/sessions"
 	"mlakp-backend/internal/users"
 )
 
@@ -45,13 +46,16 @@ func main() {
 	passwordHasher := auth.BcryptHasher{}
 	userService := users.NewService(userRepository, passwordHasher)
 	tokenManager := auth.NewTokenManager(cfg.TokenIssuer, cfg.TokenAudience, cfg.TokenSecret, cfg.AccessTokenTTL)
+	sessionRepository := sessions.NewRepository(queries)
+	sessionService := sessions.NewService(sessionRepository, cfg.RefreshTokenTTL)
 
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%s", cfg.AppPort),
 		Handler: app.NewRouter(logger, app.RouterDeps{
-			AuthHandler:      handlers.NewAuthHandler(userService, tokenManager),
+			AuthHandler:      handlers.NewAuthHandler(userService, tokenManager, sessionService),
 			UserHandler:      handlers.NewUserHandler(userService),
 			TokenManager:     tokenManager,
+			SessionService:   sessionService,
 			ReadinessChecker: dbPool,
 		}),
 		ReadTimeout:  cfg.ReadTimeout,

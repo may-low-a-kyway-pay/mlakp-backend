@@ -1,6 +1,6 @@
 # MLAKP Backend
 
-Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation, user registration, login, logout, and the authenticated current-user endpoint.
+Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation, user registration, login, refresh, session-backed logout, and the authenticated current-user endpoint.
 
 ## Requirements
 
@@ -81,6 +81,7 @@ TOKEN_ISSUER=mlakp-backend
 TOKEN_AUDIENCE=mlakp-api
 TOKEN_SECRET=change-me-local-development-secret
 ACCESS_TOKEN_TTL=15m
+REFRESH_TOKEN_TTL=720h
 READ_TIMEOUT=5s
 WRITE_TIMEOUT=10s
 IDLE_TIMEOUT=60s
@@ -103,7 +104,7 @@ Important environment rules enforced by `internal/config`:
 - `APP_PORT` must be a valid TCP port.
 - `DATABASE_URL` must use `postgres://` or `postgresql://` and include a database name.
 - `TOKEN_SECRET` is required. In production it must be at least 32 bytes.
-- Timeout values must be valid Go durations such as `15m`, `5s`, or `1h`.
+- Token TTL and timeout values must be valid Go durations such as `15m`, `5s`, or `1h`.
 
 After `.env` is ready, continue with database setup and migrations below.
 
@@ -140,6 +141,12 @@ The first migration creates:
 - lowercase email constraint
 - user name length constraint
 - `updated_at` trigger
+
+The second migration creates:
+
+- `auth_sessions` table
+- refresh token hash uniqueness constraint
+- active-session lookup index
 
 To roll back one migration:
 
@@ -217,11 +224,12 @@ curl -s -X POST http://localhost:8080/v1/auth/register \
   }'
 ```
 
-The response includes an `access_token`:
+The response includes access and refresh tokens:
 
 ```json
 {
   "access_token": "...",
+  "refresh_token": "...",
   "token_type": "Bearer",
   "expires_at": "2026-05-02T12:15:00Z",
   "user": {
@@ -247,6 +255,7 @@ Store the token from either register or login:
 
 ```sh
 TOKEN='paste-access-token-here'
+REFRESH_TOKEN='paste-refresh-token-here'
 ```
 
 Call the authenticated current-user endpoint:
@@ -256,10 +265,19 @@ curl -s http://localhost:8080/v1/users/me \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Logout is currently client-side token discard. The backend returns `204` and does not persist sessions or token denylists yet:
+Refresh the access token:
 
 ```sh
-curl -i -X POST http://localhost:8080/v1/auth/logout
+curl -s -X POST http://localhost:8080/v1/auth/refresh \
+  -H 'Content-Type: application/json' \
+  -d "{\"refresh_token\":\"$REFRESH_TOKEN\"}"
+```
+
+Logout revokes the current server-side session. The access token and refresh token for that session are rejected after logout:
+
+```sh
+curl -i -X POST http://localhost:8080/v1/auth/logout \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Development Commands
@@ -307,6 +325,7 @@ cmd/api/main.go                 Application entrypoint and HTTP server startup
 internal/app/routes.go          Route registration, health/readiness, docs, middleware wiring
 internal/config/config.go       Environment loading and validation
 internal/auth/                  Password hashing and access token handling
+internal/sessions/              Server-side session and refresh token handling
 internal/httpapi/handlers/      HTTP request handlers
 internal/httpapi/middleware/    Authentication middleware
 internal/httpapi/response/      JSON response helpers

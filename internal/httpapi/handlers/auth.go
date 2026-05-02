@@ -7,13 +7,16 @@ import (
 	"net/http"
 
 	"mlakp-backend/internal/auth"
+	"mlakp-backend/internal/httpapi/middleware"
 	"mlakp-backend/internal/httpapi/response"
+	"mlakp-backend/internal/sessions"
 	"mlakp-backend/internal/users"
 )
 
 type AuthHandler struct {
 	users        *users.Service
 	tokenManager *auth.TokenManager
+	sessions     *sessions.Service
 }
 
 type authUserResponse struct {
@@ -23,16 +26,25 @@ type authUserResponse struct {
 }
 
 type tokenResponse struct {
-	AccessToken string           `json:"access_token"`
-	TokenType   string           `json:"token_type"`
-	ExpiresAt   string           `json:"expires_at"`
-	User        authUserResponse `json:"user"`
+	AccessToken  string           `json:"access_token"`
+	RefreshToken string           `json:"refresh_token"`
+	TokenType    string           `json:"token_type"`
+	ExpiresAt    string           `json:"expires_at"`
+	User         authUserResponse `json:"user"`
 }
 
-func NewAuthHandler(users *users.Service, tokenManager *auth.TokenManager) *AuthHandler {
+type refreshResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresAt    string `json:"expires_at"`
+}
+
+func NewAuthHandler(users *users.Service, tokenManager *auth.TokenManager, sessions *sessions.Service) *AuthHandler {
 	return &AuthHandler{
 		users:        users,
 		tokenManager: tokenManager,
+		sessions:     sessions,
 	}
 }
 
@@ -53,17 +65,24 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, expiresAt, err := h.tokenManager.IssueAccessToken(r.Context(), user.ID)
+	session, refreshToken, err := h.sessions.Create(r.Context(), user.ID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
+		return
+	}
+
+	accessToken, expiresAt, err := h.tokenManager.IssueAccessToken(r.Context(), user.ID, session.ID)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
 		return
 	}
 
 	response.JSON(w, http.StatusCreated, tokenResponse{
-		AccessToken: accessToken,
-		TokenType:   "Bearer",
-		ExpiresAt:   expiresAt.Format(timeFormatRFC3339),
-		User:        toAuthUserResponse(user),
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresAt:    expiresAt.Format(timeFormatRFC3339),
+		User:         toAuthUserResponse(user),
 	})
 }
 
@@ -87,21 +106,71 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, expiresAt, err := h.tokenManager.IssueAccessToken(r.Context(), user.ID)
+	session, refreshToken, err := h.sessions.Create(r.Context(), user.ID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
+		return
+	}
+
+	accessToken, expiresAt, err := h.tokenManager.IssueAccessToken(r.Context(), user.ID, session.ID)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
 		return
 	}
 
 	response.JSON(w, http.StatusOK, tokenResponse{
-		AccessToken: accessToken,
-		TokenType:   "Bearer",
-		ExpiresAt:   expiresAt.Format(timeFormatRFC3339),
-		User:        toAuthUserResponse(user),
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresAt:    expiresAt.Format(timeFormatRFC3339),
+		User:         toAuthUserResponse(user),
 	})
 }
 
-func (h *AuthHandler) Logout(w http.ResponseWriter, _ *http.Request) {
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON")
+		return
+	}
+
+	session, refreshToken, err := h.sessions.Refresh(r.Context(), request.RefreshToken)
+	if err != nil {
+		if errors.Is(err, sessions.ErrInvalidRefreshToken) {
+			response.Error(w, http.StatusUnauthorized, "invalid_refresh_token", "Refresh token is invalid or expired")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
+		return
+	}
+
+	accessToken, expiresAt, err := h.tokenManager.IssueAccessToken(r.Context(), session.UserID, session.ID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
+		return
+	}
+
+	response.JSON(w, http.StatusOK, refreshResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresAt:    expiresAt.Format(timeFormatRFC3339),
+	})
+}
+
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	sessionID, ok := middleware.SessionIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+		return
+	}
+	if err := h.sessions.Revoke(r.Context(), sessionID); err != nil {
+		response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
+		return
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 

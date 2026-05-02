@@ -12,12 +12,14 @@ import (
 	"mlakp-backend/internal/httpapi/handlers"
 	"mlakp-backend/internal/httpapi/middleware"
 	"mlakp-backend/internal/httpapi/response"
+	"mlakp-backend/internal/sessions"
 )
 
 type RouterDeps struct {
 	AuthHandler      *handlers.AuthHandler
 	UserHandler      *handlers.UserHandler
 	TokenManager     *auth.TokenManager
+	SessionService   *sessions.Service
 	ReadinessChecker interface {
 		Ping(context.Context) error
 	}
@@ -34,10 +36,14 @@ func NewRouter(logger *slog.Logger, deps RouterDeps) http.Handler {
 	if deps.AuthHandler != nil {
 		mux.HandleFunc("POST /v1/auth/register", deps.AuthHandler.Register)
 		mux.HandleFunc("POST /v1/auth/login", deps.AuthHandler.Login)
-		mux.HandleFunc("POST /v1/auth/logout", deps.AuthHandler.Logout)
+		mux.HandleFunc("POST /v1/auth/refresh", deps.AuthHandler.Refresh)
+	}
+	if deps.AuthHandler != nil && deps.TokenManager != nil {
+		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
+		mux.Handle("POST /v1/auth/logout", authenticated(http.HandlerFunc(deps.AuthHandler.Logout)))
 	}
 	if deps.UserHandler != nil && deps.TokenManager != nil {
-		authenticated := middleware.Authenticate(deps.TokenManager)
+		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
 		mux.Handle("GET /v1/users/me", authenticated(http.HandlerFunc(deps.UserHandler.Me)))
 	}
 

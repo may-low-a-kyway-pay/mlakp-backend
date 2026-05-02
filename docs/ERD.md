@@ -17,6 +17,7 @@ Design principles:
 erDiagram
     USERS ||--o{ GROUPS : creates
     USERS ||--o{ GROUP_MEMBERS : joins
+    USERS ||--o{ AUTH_SESSIONS : owns
     GROUPS ||--o{ GROUP_MEMBERS : has
 
     USERS ||--o{ EXPENSES : creates
@@ -41,6 +42,16 @@ erDiagram
         text password_hash
         timestamptz created_at
         timestamptz updated_at
+    }
+
+    AUTH_SESSIONS {
+        uuid id PK
+        uuid user_id FK
+        text refresh_token_hash UK
+        timestamptz created_at
+        timestamptz expires_at
+        timestamptz revoked_at
+        timestamptz last_used_at
     }
 
     GROUPS {
@@ -132,6 +143,28 @@ Required constraints:
 
 Application rule:
 - Normalize email to lowercase before insert/update.
+
+### auth_sessions
+
+Required constraints:
+- `id uuid primary key default gen_random_uuid()`
+- `user_id uuid not null references users(id) on delete restrict`
+- `refresh_token_hash text not null`
+- `created_at timestamptz not null default now()`
+- `expires_at timestamptz not null`
+- `revoked_at timestamptz null`
+- `last_used_at timestamptz null`
+- `unique (refresh_token_hash)`
+- `check (expires_at > created_at)`
+
+Application rules:
+- One row represents one logged-in client/device session.
+- Store only a hash of the refresh token, never the raw refresh token.
+- Login and registration create an active session.
+- Refresh-token rotation updates the stored refresh token hash for the session.
+- Logout revokes the current session by setting `revoked_at`.
+- A session is inactive when `revoked_at is not null` or `expires_at <= now()`.
+- Access tokens must reference an active session before protected routes are served.
 
 ### groups
 
@@ -261,6 +294,7 @@ create index idx_expense_participants_user_id on expense_participants(user_id);
 create index idx_debts_debtor_status on debts(debtor_id, status);
 create index idx_debts_creditor_status on debts(creditor_id, status);
 create index idx_debts_expense_id on debts(expense_id);
+create index idx_auth_sessions_user_active on auth_sessions(user_id, revoked_at);
 create index idx_payments_debt_status on payments(debt_id, status);
 create index idx_payments_paid_by on payments(paid_by);
 create index idx_payments_received_by on payments(received_by);
@@ -272,6 +306,7 @@ create index idx_payments_received_by on payments(received_by);
 
 MVP delete behavior:
 - Users are not hard-deleted.
+- Auth sessions are revoked, not hard-deleted, during normal logout flows.
 - Expenses, debts, and payments are not deleted by user actions.
 - Group deletion is out of MVP scope.
 
