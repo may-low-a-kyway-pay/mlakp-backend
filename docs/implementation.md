@@ -1,0 +1,786 @@
+# Implementation Guide
+## Shared Expense & Debt Tracking App
+
+This guide defines the production-ready backend implementation plan for the Shared Expense & Debt Tracking App.
+
+Primary principles:
+- Prefer the Go standard library first.
+- Add third-party dependencies only when the standard library does not provide the required capability.
+- Keep business rules enforced in both application code and database constraints.
+- Treat money, authorization, state transitions, and database transactions as correctness-critical.
+
+---
+
+## 1. Production Tech Stack
+
+### Backend
+- Go 1.22 or newer
+- PostgreSQL 16+
+- Standard library HTTP server and router: `net/http`
+- Standard library structured logging: `log/slog`
+- Standard library configuration source: environment variables via `os`
+- SQL migrations: plain SQL files
+- Database access: `pgx/v5` + generated `sqlc` query code
+- Password hashing: bcrypt from `golang.org/x/crypto/bcrypt`
+- Authentication: short-lived signed access tokens using the Go standard library
+- API contract: OpenAPI 3 document, not a runtime dependency
+
+### Why Not Prisma Client Go
+
+Do not use Prisma Client Go for this project.
+
+Reason:
+- Prisma Client Go is community-supported, deprecated/archived, and not suitable as a production dependency for a new Go backend.
+- A production Go service should use maintained, explicit database tooling.
+
+Use:
+- `pgx/v5` for PostgreSQL connectivity and transactions.
+- `sqlc` tooling to generate type-safe Go code from SQL.
+
+---
+
+## 2. Dependency Policy
+
+### Standard Library First
+
+Use the Go standard library for:
+- HTTP routing and server: `net/http`
+- JSON encoding/decoding: `encoding/json`
+- Configuration: `os`
+- Context propagation: `context`
+- Graceful shutdown: `os/signal`, `syscall`, `net/http`
+- Logging: `log/slog`
+- Time handling: `time`
+- Cryptographic random bytes: `crypto/rand`
+- Tests: `testing`, `httptest`
+
+### Approved Runtime Dependencies
+
+Use third-party dependencies only where justified:
+
+- `github.com/jackc/pgx/v5`
+  - Required PostgreSQL driver and connection pool.
+
+- `golang.org/x/crypto/bcrypt`
+  - Required because the standard library does not provide bcrypt.
+
+Do not add runtime dependencies for:
+- Routing.
+- Request validation.
+- Configuration loading.
+- Logging.
+- CORS, unless the frontend deployment requires non-trivial cross-origin behavior.
+- Token signing for MVP.
+
+### Development/Tooling Dependencies
+
+These should be installed as tools, not imported into runtime code unless required:
+
+- `github.com/sqlc-dev/sqlc/cmd/sqlc`
+  - Generates type-safe Go query code from SQL.
+
+- `github.com/golang-migrate/migrate/v4/cmd/migrate`
+  - Applies plain SQL migration files in local development, CI, and deployment.
+
+- `golangci-lint`, optional for CI.
+  - Not required for runtime behavior.
+
+OpenAPI tooling is optional. The project can maintain `api/openapi.yaml` manually at first.
+
+### Dependencies To Avoid Initially
+
+- `github.com/go-chi/chi/v5`
+  - Avoid until `net/http.ServeMux` is insufficient.
+
+- `github.com/go-chi/cors`
+  - Implement simple CORS middleware internally if needed.
+
+- `github.com/joho/godotenv`
+  - Avoid in production code. Local development may use shell scripts, Docker Compose env files, or documented exports.
+
+- `github.com/go-playground/validator/v10`
+  - Prefer explicit request validation so business errors are readable and controlled.
+
+- `github.com/google/uuid`
+  - Avoid if PostgreSQL generates UUIDs with `gen_random_uuid()`.
+  - Use only if application-side UUID creation is required.
+
+- JWT/PASETO libraries
+  - Avoid for MVP unless an external token standard is required by clients.
+  - Use standard library HMAC-signed access tokens instead.
+
+- `github.com/rs/zerolog`
+  - Prefer standard library `log/slog`.
+
+- `github.com/swaggo/*`
+  - Avoid annotation-driven docs initially. Keep OpenAPI as an explicit contract.
+
+---
+
+## 3. Folder Structure
+
+Recommended structure:
+
+```text
+mlakp-backend/
+├── cmd/
+│   └── api/
+│       └── main.go
+├── api/
+│   └── openapi.yaml
+├── docs/
+│   ├── BRS.md
+│   ├── ERD.md
+│   └── implementation.md
+├── internal/
+│   ├── app/
+│   │   ├── app.go
+│   │   └── routes.go
+│   ├── config/
+│   │   └── config.go
+│   ├── httpapi/
+│   │   ├── middleware/
+│   │   ├── request/
+│   │   ├── response/
+│   │   └── handlers/
+│   ├── auth/
+│   ├── users/
+│   ├── groups/
+│   ├── expenses/
+│   ├── debts/
+│   ├── payments/
+│   ├── dashboard/
+│   ├── money/
+│   └── postgres/
+│       ├── db.go
+│       ├── tx.go
+│       └── sqlc/
+├── migrations/
+│   ├── 000001_init.up.sql
+│   └── 000001_init.down.sql
+├── queries/
+│   ├── users.sql
+│   ├── groups.sql
+│   ├── expenses.sql
+│   ├── debts.sql
+│   ├── payments.sql
+│   └── dashboard.sql
+├── deploy/
+│   ├── Dockerfile
+│   └── docker-compose.yml
+├── scripts/
+├── sqlc.yaml
+├── go.mod
+├── go.sum
+├── README.md
+└── Makefile
+```
+
+Rules:
+- `cmd/api/main.go` only wires configuration, logger, database, router, server, and shutdown.
+- `internal` contains private application code.
+- Do not create `pkg` unless code is intentionally reusable by other Go modules.
+- Keep generated sqlc code under `internal/postgres/sqlc`.
+- Keep SQL queries in `queries/`.
+- Keep SQL migrations in `migrations/`.
+- Keep OpenAPI in `api/openapi.yaml`.
+
+---
+
+## 4. Architecture
+
+Use a simple layered architecture:
+
+```text
+HTTP handler -> service/use case -> repository/sqlc -> PostgreSQL
+```
+
+Responsibilities:
+- Handlers decode requests, authenticate user context, call services, and encode responses.
+- Services enforce business rules and transaction boundaries.
+- Repositories call generated sqlc queries.
+- Database constraints enforce invariants that must never be bypassed.
+
+Do not put business rules directly in handlers.
+
+---
+
+## 5. Money Handling
+
+Never use `float32`, `float64`, or database floating-point types for money.
+
+Use integer minor units:
+- THB 1.00 = 100 satang
+- Go type: `int64`
+- PostgreSQL type: `BIGINT`
+
+Rules:
+- All incoming amounts must be converted to minor units before business logic.
+- All stored monetary values must be positive integers unless explicitly allowed otherwise.
+- Equal split must distribute the remainder deterministically so the sum exactly equals the expense total.
+- Manual split must require `sum(share_amount_minor) == total_amount_minor`.
+- Confirmed payments must never make `remaining_amount_minor < 0`.
+
+Recommended package:
+- `internal/money`
+
+Responsibilities:
+- Parse decimal input into minor units.
+- Format minor units for output.
+- Equal split calculation.
+- Validation helpers.
+
+---
+
+## 6. Database Design Rules
+
+Use PostgreSQL as the source of truth for integrity.
+
+Required constraints:
+- `users.email` unique and case-normalized.
+- `group_members(group_id, user_id)` unique.
+- `expense_participants(expense_id, user_id)` unique.
+- Monetary columns use `BIGINT`.
+- Amounts must be `> 0`.
+- `debts.remaining_amount_minor >= 0`.
+- `debts.remaining_amount_minor <= debts.original_amount_minor`.
+- `debts.debtor_id <> debts.creditor_id`.
+- Status columns constrained to known values.
+- Foreign keys must define explicit delete behavior.
+- Financial history tables must use restrictive delete behavior.
+
+Recommended indexes:
+- `group_members(user_id)`.
+- `expenses(group_id, expense_date desc, created_at desc)`.
+- `debts(debtor_id, status)`.
+- `debts(creditor_id, status)`.
+- `debts(expense_id)`.
+- `payments(debt_id, status)`.
+
+Recommended PostgreSQL extensions:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+```
+
+Use `gen_random_uuid()` for primary keys unless app-side IDs become necessary.
+
+---
+
+## 7. Database Access
+
+Use `pgxpool.Pool` for runtime database access.
+
+Use `sqlc` for query generation:
+
+```yaml
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "migrations"
+    queries: "queries"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/postgres/sqlc"
+        sql_package: "pgx/v5"
+```
+
+Rules:
+- No ad hoc SQL string building in services.
+- Use transactions for multi-step writes.
+- Pass `context.Context` through every database call.
+- Set query timeouts at request/service boundaries.
+- Prefer explicit SQL over ORM abstractions.
+
+---
+
+## 8. Transactions and Concurrency
+
+Transaction-required flows:
+- Create expense, participants, and debts.
+- Accept or reject debt.
+- Mark payment.
+- Confirm or reject payment.
+- Any operation that updates debt/payment state.
+
+Concurrency rules:
+- Lock the debt row when confirming payment.
+- Confirm payment and update debt in one transaction.
+- Prevent double confirmation of the same payment.
+- Prevent accepting payment for rejected or settled debts.
+- Pending payments plus confirmed payments must not exceed the current `remaining_amount_minor`.
+- Use conditional updates where possible, e.g. update only when status is expected.
+
+Required behavior:
+- If two requests try to confirm the same payment, only one succeeds.
+- If two pending payments would exceed `remaining_amount_minor`, the second operation must fail.
+
+---
+
+## 9. Business State Machines
+
+### Debt Status
+
+Allowed values:
+- `pending`
+- `accepted`
+- `rejected`
+- `partially_settled`
+- `settled`
+
+Allowed transitions:
+- `pending -> accepted`
+- `pending -> rejected`
+- `accepted -> partially_settled`
+- `accepted -> settled`
+- `partially_settled -> settled`
+
+Disallowed:
+- `rejected -> accepted`
+- `settled -> partially_settled`
+- Any payment against `pending`, `rejected`, or `settled` debt.
+
+### Payment Status
+
+Allowed values:
+- `pending_confirmation`
+- `confirmed`
+- `rejected`
+
+Allowed transitions:
+- `pending_confirmation -> confirmed`
+- `pending_confirmation -> rejected`
+
+Disallowed:
+- Changing a confirmed payment.
+- Changing a rejected payment.
+- Confirming payment when debt no longer has enough remaining balance.
+
+---
+
+## 10. API Routes
+
+Use versioned API routes:
+
+```text
+POST   /v1/auth/register
+POST   /v1/auth/login
+POST   /v1/auth/logout
+GET    /v1/users/me
+
+POST   /v1/groups
+GET    /v1/groups
+GET    /v1/groups/{groupID}
+POST   /v1/groups/{groupID}/members
+
+POST   /v1/expenses
+GET    /v1/expenses/{expenseID}
+GET    /v1/groups/{groupID}/expenses
+
+POST   /v1/debts/{debtID}/accept
+POST   /v1/debts/{debtID}/reject
+GET    /v1/debts
+
+POST   /v1/debts/{debtID}/payments
+POST   /v1/payments/{paymentID}/confirm
+POST   /v1/payments/{paymentID}/reject
+
+GET    /v1/dashboard
+GET    /healthz
+GET    /readyz
+```
+
+Rules:
+- All non-auth routes require authentication.
+- All group/expense/debt/payment routes require authorization checks.
+- Path IDs must be validated.
+- Use consistent JSON response envelopes.
+- Return stable machine-readable error codes.
+
+---
+
+## 11. Authentication and Authorization
+
+Authentication requirements:
+- Store only password hashes.
+- Hash passwords with bcrypt.
+- Never log passwords, token values, or password hashes.
+- Access tokens must expire.
+- Use standard library HMAC signing for MVP access tokens.
+- Validate token signature, expiry, issuer, audience, and subject.
+- For MVP, logout is client-side token discard unless a token denylist or session table is explicitly added.
+- Production deployments should add rate limiting to auth endpoints.
+- Password reset and email verification are outside MVP scope unless explicitly added.
+
+MVP token requirements:
+- Token payload must include `sub` user ID, `iss`, `aud`, `exp`, and `iat`.
+- Token signature must use `crypto/hmac` with `crypto/sha256`.
+- Token encoding must use URL-safe base64.
+- Token comparison must use constant-time comparison.
+- Expired or malformed tokens must be rejected.
+- Token secret must come from configuration and must not be logged.
+
+Authorization requirements:
+- Only group members can view group expenses.
+- Only group owners can add members to a group.
+- Only authorized group members can create expenses for a group.
+- Payer must be a valid user and, for group expenses, a group member.
+- Participants must be valid users and, for group expenses, group members.
+- Only debtor can accept or reject their debt.
+- Only debtor can create payment records for their debt.
+- Only creditor can confirm or reject payment records.
+- Historical debts and payments remain accessible to involved users for audit purposes.
+
+---
+
+## 12. Request Validation
+
+Validate explicitly in handlers or request-specific validation functions.
+
+Required validation:
+- Required fields are present.
+- Strings have length limits.
+- Amounts are positive.
+- Currency is supported.
+- Split type is known.
+- Participants are unique.
+- Manual shares sum exactly to total amount.
+- Receipt URL, if supported, is valid and safe.
+- Dates are valid and not outside allowed bounds.
+
+Return `400 Bad Request` for syntactic validation errors.
+Return `422 Unprocessable Entity` for valid JSON that violates business rules.
+Return `403 Forbidden` for authorization failures.
+Return `409 Conflict` for invalid state transitions or concurrent update conflicts.
+
+---
+
+## 13. Core Business Logic
+
+### Create Expense
+
+Required steps:
+1. Authenticate user.
+2. Validate request.
+3. Validate group access.
+4. Validate payer.
+5. Validate participants.
+6. Validate or calculate split.
+7. Start transaction.
+8. Insert expense.
+9. Insert expense participants.
+10. Generate debts for participants except payer.
+11. Commit transaction.
+
+Rules:
+- `group_id` is required for MVP.
+- Payer may be included in participants.
+- Payer share does not create self-debt.
+- If payer is not included in participants, payer has no share.
+- At least one participant other than the payer is required.
+- If all debtors later reject, the expense has no financial effect.
+- Expenses are immutable in the MVP and cannot be edited or deleted after creation.
+
+### Equal Split
+
+Example:
+
+```text
+10000 / 3 = 3333, 3333, 3334
+```
+
+Rule:
+- Total assigned shares must exactly equal total amount.
+- Remainder distribution must be deterministic.
+
+### Manual Split
+
+Rule:
+- Sum of participant shares must exactly equal total amount.
+
+### Accept Debt
+
+Rules:
+- Only debtor.
+- Only from `pending`.
+- Set `accepted_at`.
+
+### Reject Debt
+
+Rules:
+- Only debtor.
+- Only from `pending`.
+- Set `rejected_at`.
+- Exclude from dashboard totals.
+
+### Mark Payment
+
+Rules:
+- Only debtor.
+- Debt must be `accepted` or `partially_settled`.
+- Amount must be positive.
+- Amount must not exceed available `remaining_amount_minor` after considering pending payments.
+- Create payment with `pending_confirmation`.
+
+### Confirm Payment
+
+Rules:
+- Only creditor.
+- Payment must be `pending_confirmation`.
+- Lock payment and debt rows in one transaction.
+- Debt must be `accepted` or `partially_settled`.
+- Payment amount must be `<= remaining_amount_minor`.
+- Reduce `remaining_amount_minor`.
+- If remaining is `0`, set debt status to `settled` and set `settled_at`.
+- Otherwise set debt status to `partially_settled`.
+- Set payment status to `confirmed` and set `confirmed_at`.
+
+### Reject Payment
+
+Rules:
+- Only creditor.
+- Payment must be `pending_confirmation`.
+- Do not change debt amount.
+- Set payment status to `rejected` and set `rejected_at`.
+
+---
+
+## 14. Dashboard Rules
+
+Dashboard totals include only valid debts:
+- Include `accepted` and `partially_settled`.
+- Exclude `pending`, `rejected`, and `settled`.
+- Use `remaining_amount_minor`, not `original_amount_minor`.
+
+Views:
+- `you_owe`: debts where current user is debtor.
+- `you_get`: debts where current user is creditor.
+
+---
+
+## 14.1 Expense Correction Policy
+
+For MVP:
+- Do not implement expense edit.
+- Do not implement expense delete.
+- Preserve expense, participant, debt, and payment history.
+
+Reason:
+- Editing or deleting expenses after debts or payments exist creates accounting ambiguity.
+- A future correction flow should be explicit, auditable, and modeled separately from direct mutation.
+
+---
+
+## 15. Configuration
+
+Read configuration from environment variables.
+
+Required:
+
+```text
+APP_ENV=local|test|production
+APP_PORT=8080
+DATABASE_URL=postgres://...
+TOKEN_ISSUER=mlakp-backend
+TOKEN_AUDIENCE=mlakp-api
+TOKEN_SECRET=...
+ACCESS_TOKEN_TTL=15m
+READ_TIMEOUT=5s
+WRITE_TIMEOUT=10s
+IDLE_TIMEOUT=60s
+SHUTDOWN_TIMEOUT=10s
+```
+
+Rules:
+- Do not commit `.env`.
+- Provide `.env.example` only.
+- Validate all configuration at startup.
+- Fail fast on missing or invalid production configuration.
+
+---
+
+## 16. HTTP Server Requirements
+
+Server requirements:
+- Set read timeout.
+- Set write timeout.
+- Set idle timeout.
+- Set max request body size.
+- Use graceful shutdown.
+- Add request ID middleware.
+- Add panic recovery middleware.
+- Add structured request logging.
+- Add secure headers where applicable.
+
+Health checks:
+- `/healthz`: process is running.
+- `/readyz`: process can reach required dependencies, especially PostgreSQL.
+
+---
+
+## 17. Error Handling
+
+Use typed application errors.
+
+Error response shape:
+
+```json
+{
+  "error": {
+    "code": "debt_invalid_state",
+    "message": "Debt cannot accept payments in its current state"
+  }
+}
+```
+
+Rules:
+- Do not expose SQL errors directly.
+- Log internal error details server-side.
+- Return stable error codes for clients.
+- Keep user-facing messages clear and non-sensitive.
+
+---
+
+## 18. Logging
+
+Use `log/slog`.
+
+Required fields:
+- `request_id`
+- `method`
+- `path`
+- `status`
+- `duration_ms`
+- `user_id`, when authenticated
+
+Never log:
+- Passwords
+- Password hashes
+- Token values
+- Authorization headers
+- Full database URLs
+
+---
+
+## 19. OpenAPI
+
+Maintain `api/openapi.yaml` as the source of truth for the HTTP contract.
+
+OpenAPI 3 is a language-neutral specification for describing HTTP APIs. In this project it is documentation and a contract between backend and clients, not a Go library and not runtime code.
+
+Use it to define:
+- Which routes exist.
+- Which request JSON each route accepts.
+- Which response JSON each route returns.
+- Which status codes and error codes clients must handle.
+- Which routes require authentication.
+
+Required:
+- Request schemas.
+- Response schemas.
+- Error schemas.
+- Auth scheme.
+- Status codes.
+- Example requests and responses for core flows.
+
+OpenAPI must be updated with every API behavior change.
+
+Build guidance:
+- Draft OpenAPI before implementing handlers.
+- Keep handler request/response structs aligned with OpenAPI.
+- Do not add OpenAPI code generation unless manually maintaining request and response structs becomes a real source of drift.
+
+---
+
+## 20. Testing Strategy
+
+Required tests:
+- Unit tests for money parsing, formatting, and splitting.
+- Unit tests for debt/payment state transitions.
+- Unit tests for request validation.
+- Handler tests using `httptest`.
+- Repository/integration tests against PostgreSQL.
+- Transaction/concurrency tests for payment confirmation.
+
+Recommended commands:
+
+```text
+go test ./...
+go test -race ./...
+go vet ./...
+sqlc generate
+```
+
+CI should run tests, race checks where practical, vet, lint, sqlc generation checks, and migration checks.
+
+---
+
+## 21. Docker and Deployment
+
+Docker requirements:
+- Multi-stage build.
+- Non-root runtime user.
+- Minimal runtime image.
+- Health check.
+- No secrets baked into the image.
+
+Docker Compose is for local development only.
+
+Production deployment must provide:
+- Managed PostgreSQL or production-grade PostgreSQL setup.
+- Environment-based secrets.
+- Migration execution strategy.
+- Log collection.
+- Backup and restore plan.
+
+---
+
+## 22. Build Order
+
+Recommended order:
+1. Initialize Go module.
+2. Add folder structure.
+3. Add configuration loading.
+4. Add logger.
+5. Add HTTP server, middleware, health checks, and graceful shutdown.
+6. Draft OpenAPI contract for MVP routes and schemas.
+7. Add migrations and database connection.
+8. Add sqlc configuration and generated query layer.
+9. Add auth.
+10. Add users.
+11. Add groups and membership authorization.
+12. Add money package.
+13. Add expenses and split logic.
+14. Add debt acceptance/rejection.
+15. Add payments and confirmation logic.
+16. Add dashboard.
+17. Add Docker and CI.
+
+---
+
+## 23. MVP Flow
+
+```text
+User A registers
+User B registers
+User A creates group
+User A adds User B to group
+User A creates expense
+System generates debt
+User B accepts debt
+User B marks payment
+User A confirms payment
+System updates debt as partially_settled or settled
+Dashboard reflects remaining accepted debt only
+```
+
+---
+
+## 24. Reference Guidance
+
+This implementation guide follows:
+- Go module organization guidance from the official Go documentation.
+- `net/http` ServeMux method and path routing available in modern Go.
+- `log/slog` for standard library structured logging.
+- `sqlc` documented support for `pgx/v5`.
