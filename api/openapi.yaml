@@ -1,0 +1,378 @@
+openapi: 3.0.3
+info:
+  title: MLAKP Shared Expense API
+  version: 0.1.0
+  description: HTTP API contract for the shared expense and debt tracking backend.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: Health
+    description: Service health and readiness checks.
+  - name: Auth
+    description: Registration, login, and logout.
+  - name: Users
+    description: Authenticated user profile operations.
+paths:
+  /healthz:
+    get:
+      tags:
+        - Health
+      summary: Check process health
+      operationId: getHealthz
+      responses:
+        "200":
+          description: The process is running.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+              example:
+                status: ok
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /readyz:
+    get:
+      tags:
+        - Health
+      summary: Check service readiness
+      operationId: getReadyz
+      responses:
+        "200":
+          description: The service is ready to handle traffic.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+              example:
+                status: ready
+        "503":
+          description: The service is not ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: not_ready
+                  message: Service is not ready
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            example:
+              name: Thomas
+              email: thomas@example.com
+              password: password123
+      responses:
+        "201":
+          description: User registered and access token issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokenResponse"
+              example:
+                access_token: eyJzdWIiOiIxMjMifQ.signature
+                token_type: Bearer
+                expires_at: "2026-05-02T12:15:00Z"
+                user:
+                  id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                  name: Thomas
+                  email: thomas@example.com
+        "400":
+          description: Invalid JSON or invalid user input.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidJson:
+                  value:
+                    error:
+                      code: invalid_json
+                      message: Request body must be valid JSON
+                invalidName:
+                  value:
+                    error:
+                      code: invalid_name
+                      message: Name must be between 1 and 120 characters
+                invalidEmail:
+                  value:
+                    error:
+                      code: invalid_email
+                      message: Email is invalid
+                invalidPassword:
+                  value:
+                    error:
+                      code: invalid_password
+                      message: Password must be at least 8 characters
+        "409":
+          description: Email is already registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: email_already_registered
+                  message: Email is already registered
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login a user
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              email: thomas@example.com
+              password: password123
+      responses:
+        "200":
+          description: Credentials accepted and access token issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokenResponse"
+              example:
+                access_token: eyJzdWIiOiIxMjMifQ.signature
+                token_type: Bearer
+                expires_at: "2026-05-02T12:15:00Z"
+                user:
+                  id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                  name: Thomas
+                  email: thomas@example.com
+        "400":
+          description: Invalid JSON or invalid email syntax.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidJson:
+                  value:
+                    error:
+                      code: invalid_json
+                      message: Request body must be valid JSON
+                invalidEmail:
+                  value:
+                    error:
+                      code: invalid_email
+                      message: Email is invalid
+        "401":
+          description: Credentials are invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: invalid_credentials
+                  message: Email or password is incorrect
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout current client
+      description: MVP logout is client-side token discard. The backend does not persist sessions or token denylists yet.
+      operationId: logoutUser
+      responses:
+        "204":
+          description: Logout accepted. No response body.
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/users/me:
+    get:
+      tags:
+        - Users
+      summary: Get current authenticated user
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+              example:
+                user:
+                  id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                  name: Thomas
+                  email: thomas@example.com
+        "401":
+          description: Missing, malformed, expired, invalid, or stale access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                unauthenticated:
+                  value:
+                    error:
+                      code: unauthenticated
+                      message: Authentication is required
+                invalidAuthorizationHeader:
+                  value:
+                    error:
+                      code: invalid_authorization_header
+                      message: Authorization header must use Bearer token
+                invalidAccessToken:
+                  value:
+                    error:
+                      code: invalid_access_token
+                      message: Access token is invalid or expired
+                missingUser:
+                  value:
+                    error:
+                      code: invalid_access_token
+                      message: Access token user no longer exists
+        "500":
+          $ref: "#/components/responses/InternalError"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: HMAC-SHA256
+  responses:
+    InternalError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: internal_error
+              message: Internal server error
+  schemas:
+    StatusResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Email is normalized to lowercase before storage.
+        password:
+          type: string
+          format: password
+          minLength: 8
+          writeOnly: true
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 1
+          writeOnly: true
+    AuthTokenResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - access_token
+        - token_type
+        - expires_at
+        - user
+      properties:
+        access_token:
+          type: string
+          description: Short-lived HMAC-SHA256 signed access token.
+        token_type:
+          type: string
+          enum:
+            - Bearer
+        expires_at:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/User"
+    CurrentUserResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - user
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+    User:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - email
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        email:
+          type: string
+          format: email
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
