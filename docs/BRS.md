@@ -33,6 +33,8 @@ The system does **not handle real money transfers**. It only records and tracks 
 ### 3.0 Users and Groups
 Users can:
 - Register and log in
+- Stay signed in through a secure session
+- Log out of their current session
 - View their own profile
 - Create groups
 - View groups they belong to
@@ -45,6 +47,18 @@ Group rules:
 - Only a group owner can add members.
 - A payer and all participants must be group members for group expenses.
 - Historical expenses, debts, and payments remain visible to involved users even if membership rules are expanded later.
+
+---
+
+### 3.0.1 Authentication Sessions
+
+Session rules:
+- Registration and login create an authenticated session.
+- Protected actions require an active authenticated session.
+- Logout invalidates the current session.
+- After logout, the same session must no longer allow access to protected data.
+- Session expiry must eventually require the user to authenticate again.
+- The system must not expose passwords, password hashes, access tokens, or refresh tokens in logs or API responses except when issuing new tokens to the authenticated client.
 
 ---
 
@@ -192,6 +206,8 @@ Future versions may support cancellation or correction flows, but they must pres
 - Only creditor can confirm/reject payment
 - Payer may be included in participants but does not create self-debt
 - Payment and debt history must remain available for audit purposes
+- Users must have an active authenticated session to access protected functionality
+- Logout must revoke the user's current session
 - Users must not be able to view or mutate groups, expenses, debts, or payments they are not authorized to access
 
 --- 
@@ -215,6 +231,7 @@ Debtor Pays → Mark as Paid → Creditor Confirms → Debt Updated
 ## 7. MVP Scope
 
 - User registration and login
+- Session-backed logout
 - Group creation and member management
 - Expense creation **(equal + manual split)**
 - Debt tracking

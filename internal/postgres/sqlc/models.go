@@ -8,6 +8,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AuthSession struct {
+	ID               pgtype.UUID
+	UserID           pgtype.UUID
+	RefreshTokenHash string
+	CreatedAt        pgtype.Timestamptz
+	ExpiresAt        pgtype.Timestamptz
+	RevokedAt        pgtype.Timestamptz
+	LastUsedAt       pgtype.Timestamptz
+}
+
 type User struct {
 	ID           pgtype.UUID
 	Name         string

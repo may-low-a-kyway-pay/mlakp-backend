@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -23,11 +24,13 @@ type TokenManager struct {
 }
 
 type Claims struct {
-	Subject  string `json:"sub"`
-	Issuer   string `json:"iss"`
-	Audience string `json:"aud"`
-	Expires  int64  `json:"exp"`
-	IssuedAt int64  `json:"iat"`
+	Subject   string `json:"sub"`
+	SessionID string `json:"sid"`
+	TokenID   string `json:"jti"`
+	Issuer    string `json:"iss"`
+	Audience  string `json:"aud"`
+	Expires   int64  `json:"exp"`
+	IssuedAt  int64  `json:"iat"`
 }
 
 func NewTokenManager(issuer, audience, secret string, ttl time.Duration) *TokenManager {
@@ -40,16 +43,26 @@ func NewTokenManager(issuer, audience, secret string, ttl time.Duration) *TokenM
 	}
 }
 
-func (m *TokenManager) IssueAccessToken(_ context.Context, subject string) (string, time.Time, error) {
+func (m *TokenManager) IssueAccessToken(_ context.Context, subject, sessionID string) (string, time.Time, error) {
+	if strings.TrimSpace(subject) == "" || strings.TrimSpace(sessionID) == "" {
+		return "", time.Time{}, ErrInvalidToken
+	}
+
 	now := m.now().UTC()
 	expiresAt := now.Add(m.ttl)
+	tokenID, err := randomTokenID()
+	if err != nil {
+		return "", time.Time{}, err
+	}
 
 	claims := Claims{
-		Subject:  subject,
-		Issuer:   m.issuer,
-		Audience: m.audience,
-		Expires:  expiresAt.Unix(),
-		IssuedAt: now.Unix(),
+		Subject:   subject,
+		SessionID: sessionID,
+		TokenID:   tokenID,
+		Issuer:    m.issuer,
+		Audience:  m.audience,
+		Expires:   expiresAt.Unix(),
+		IssuedAt:  now.Unix(),
 	}
 
 	payload, err := json.Marshal(claims)
@@ -84,7 +97,7 @@ func (m *TokenManager) ValidateAccessToken(token string) (Claims, error) {
 		return Claims{}, ErrInvalidToken
 	}
 
-	if claims.Subject == "" || claims.Issuer != m.issuer || claims.Audience != m.audience {
+	if claims.Subject == "" || claims.SessionID == "" || claims.TokenID == "" || claims.Issuer != m.issuer || claims.Audience != m.audience {
 		return Claims{}, ErrInvalidToken
 	}
 	now := m.now().UTC().Unix()
@@ -99,4 +112,13 @@ func (m *TokenManager) sign(payload string) string {
 	mac := hmac.New(sha256.New, m.secret)
 	_, _ = fmt.Fprint(mac, payload)
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func randomTokenID() (string, error) {
+	var bytes [16]byte
+	if _, err := rand.Read(bytes[:]); err != nil {
+		return "", err
+	}
+
+	return base64.RawURLEncoding.EncodeToString(bytes[:]), nil
 }

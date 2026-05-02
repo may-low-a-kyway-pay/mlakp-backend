@@ -10,7 +10,7 @@ tags:
   - name: Health
     description: Service health and readiness checks.
   - name: Auth
-    description: Registration, login, and logout.
+    description: Registration, login, refresh, and session-backed logout.
   - name: Users
     description: Authenticated user profile operations.
 paths:
@@ -83,6 +83,7 @@ paths:
                 $ref: "#/components/schemas/AuthTokenResponse"
               example:
                 access_token: eyJzdWIiOiIxMjMifQ.signature
+                refresh_token: opaque-refresh-token
                 token_type: Bearer
                 expires_at: "2026-05-02T12:15:00Z"
                 user:
@@ -152,6 +153,7 @@ paths:
                 $ref: "#/components/schemas/AuthTokenResponse"
               example:
                 access_token: eyJzdWIiOiIxMjMifQ.signature
+                refresh_token: opaque-refresh-token
                 token_type: Bearer
                 expires_at: "2026-05-02T12:15:00Z"
                 user:
@@ -192,11 +194,71 @@ paths:
       tags:
         - Auth
       summary: Logout current client
-      description: MVP logout is client-side token discard. The backend does not persist sessions or token denylists yet.
+      description: Revokes the current server-side session. Access and refresh tokens tied to the session are rejected after logout.
       operationId: logoutUser
+      security:
+        - bearerAuth: []
       responses:
         "204":
           description: Logout accepted. No response body.
+        "401":
+          description: Missing, malformed, expired, invalid, or stale access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: invalid_access_token
+                  message: Access token is invalid or expired
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refresh access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+            example:
+              refresh_token: opaque-refresh-token
+      responses:
+        "200":
+          description: Refresh token accepted and rotated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshTokenResponse"
+              example:
+                access_token: eyJzdWIiOiIxMjMifQ.signature
+                refresh_token: rotated-refresh-token
+                token_type: Bearer
+                expires_at: "2026-05-02T12:15:00Z"
+        "400":
+          description: Invalid JSON.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: invalid_json
+                  message: Request body must be valid JSON
+        "401":
+          description: Refresh token is invalid, expired, rotated, or revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: invalid_refresh_token
+                  message: Refresh token is invalid or expired
         "500":
           $ref: "#/components/responses/InternalError"
   /v1/users/me:
@@ -312,11 +374,22 @@ components:
           format: password
           minLength: 1
           writeOnly: true
+    RefreshTokenRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          minLength: 1
+          writeOnly: true
     AuthTokenResponse:
       type: object
       additionalProperties: false
       required:
         - access_token
+        - refresh_token
         - token_type
         - expires_at
         - user
@@ -324,6 +397,9 @@ components:
         access_token:
           type: string
           description: Short-lived HMAC-SHA256 signed access token.
+        refresh_token:
+          type: string
+          description: Opaque refresh token. Store securely on the client.
         token_type:
           type: string
           enum:
@@ -333,6 +409,28 @@ components:
           format: date-time
         user:
           $ref: "#/components/schemas/User"
+    RefreshTokenResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - access_token
+        - refresh_token
+        - token_type
+        - expires_at
+      properties:
+        access_token:
+          type: string
+          description: Short-lived HMAC-SHA256 signed access token.
+        refresh_token:
+          type: string
+          description: Rotated opaque refresh token. Replaces the previous refresh token.
+        token_type:
+          type: string
+          enum:
+            - Bearer
+        expires_at:
+          type: string
+          format: date-time
     CurrentUserResponse:
       type: object
       additionalProperties: false

@@ -10,8 +10,13 @@ import (
 )
 
 type userIDContextKey struct{}
+type sessionIDContextKey struct{}
 
-func Authenticate(tokenManager *auth.TokenManager) func(http.Handler) http.Handler {
+type SessionValidator interface {
+	ValidateAccessSession(ctx context.Context, sessionID string) error
+}
+
+func Authenticate(tokenManager *auth.TokenManager, sessionValidator SessionValidator) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			header := strings.TrimSpace(r.Header.Get("Authorization"))
@@ -31,8 +36,15 @@ func Authenticate(tokenManager *auth.TokenManager) func(http.Handler) http.Handl
 				response.Error(w, http.StatusUnauthorized, "invalid_access_token", "Access token is invalid or expired")
 				return
 			}
+			if sessionValidator != nil {
+				if err := sessionValidator.ValidateAccessSession(r.Context(), claims.SessionID); err != nil {
+					response.Error(w, http.StatusUnauthorized, "invalid_access_token", "Access token is invalid or expired")
+					return
+				}
+			}
 
 			ctx := context.WithValue(r.Context(), userIDContextKey{}, claims.Subject)
+			ctx = context.WithValue(ctx, sessionIDContextKey{}, claims.SessionID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -41,4 +53,9 @@ func Authenticate(tokenManager *auth.TokenManager) func(http.Handler) http.Handl
 func UserIDFromContext(ctx context.Context) (string, bool) {
 	userID, ok := ctx.Value(userIDContextKey{}).(string)
 	return userID, ok && userID != ""
+}
+
+func SessionIDFromContext(ctx context.Context) (string, bool) {
+	sessionID, ok := ctx.Value(sessionIDContextKey{}).(string)
+	return sessionID, ok && sessionID != ""
 }

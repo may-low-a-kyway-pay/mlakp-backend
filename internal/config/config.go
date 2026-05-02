@@ -25,6 +25,7 @@ type Config struct {
 	TokenAudience   string
 	TokenSecret     string
 	AccessTokenTTL  time.Duration
+	RefreshTokenTTL time.Duration
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	IdleTimeout     time.Duration
@@ -93,6 +94,7 @@ func Load() (Config, error) {
 	}
 
 	cfg.AccessTokenTTL = parseDuration("ACCESS_TOKEN_TTL")
+	cfg.RefreshTokenTTL = parseDuration("REFRESH_TOKEN_TTL")
 	cfg.ReadTimeout = parseDuration("READ_TIMEOUT")
 	cfg.WriteTimeout = parseDuration("WRITE_TIMEOUT")
 	cfg.IdleTimeout = parseDuration("IDLE_TIMEOUT")
