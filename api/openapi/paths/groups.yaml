@@ -22,12 +22,14 @@
               schema:
                 $ref: "#/components/schemas/GroupResponse"
               example:
-                group:
-                  id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
-                  name: Home
-                  created_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                  created_at: "2026-05-03T10:15:00Z"
-                  updated_at: "2026-05-03T10:15:00Z"
+                success: true
+                data:
+                  group:
+                    id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
+                    name: Home
+                    created_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                    created_at: "2026-05-03T10:15:00Z"
+                    updated_at: "2026-05-03T10:15:00Z"
         "400":
           description: Invalid JSON or invalid group input.
           content:
@@ -37,11 +39,13 @@
               examples:
                 invalidJson:
                   value:
+                    success: false
                     error:
                       code: invalid_json
                       message: Request body must be valid JSON
                 invalidGroupName:
                   value:
+                    success: false
                     error:
                       code: invalid_group_name
                       message: Group name must be between 1 and 120 characters
@@ -68,12 +72,14 @@
               schema:
                 $ref: "#/components/schemas/GroupListResponse"
               example:
-                groups:
-                  - id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
-                    name: Home
-                    created_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                    created_at: "2026-05-03T10:15:00Z"
-                    updated_at: "2026-05-03T10:15:00Z"
+                success: true
+                data:
+                  groups:
+                    - id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
+                      name: Home
+                      created_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                      created_at: "2026-05-03T10:15:00Z"
+                      updated_at: "2026-05-03T10:15:00Z"
         "401":
           description: Missing, malformed, expired, invalid, or stale access token.
           content:
@@ -105,18 +111,20 @@
               schema:
                 $ref: "#/components/schemas/GroupDetailsResponse"
               example:
-                group:
-                  id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
-                  name: Home
-                  created_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                  created_at: "2026-05-03T10:15:00Z"
-                  updated_at: "2026-05-03T10:15:00Z"
-                members:
-                  - id: 279ef8bd-90ec-47a6-883f-2bb664f9ec44
-                    group_id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
-                    user_id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                    role: owner
-                    joined_at: "2026-05-03T10:15:00Z"
+                success: true
+                data:
+                  group:
+                    id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
+                    name: Home
+                    created_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                    created_at: "2026-05-03T10:15:00Z"
+                    updated_at: "2026-05-03T10:15:00Z"
+                  members:
+                    - id: 279ef8bd-90ec-47a6-883f-2bb664f9ec44
+                      group_id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
+                      user_id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                      role: owner
+                      joined_at: "2026-05-03T10:15:00Z"
         "400":
           description: Invalid group ID.
           content:
@@ -168,12 +176,14 @@
               schema:
                 $ref: "#/components/schemas/GroupMemberResponse"
               example:
-                member:
-                  id: 2d98a193-8d18-439e-a88f-9c79cf4ed12d
-                  group_id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
-                  user_id: 755a01f4-fc4e-483f-9d39-d8dccb7d77c0
-                  role: member
-                  joined_at: "2026-05-03T10:20:00Z"
+                success: true
+                data:
+                  member:
+                    id: 2d98a193-8d18-439e-a88f-9c79cf4ed12d
+                    group_id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
+                    user_id: 755a01f4-fc4e-483f-9d39-d8dccb7d77c0
+                    role: member
+                    joined_at: "2026-05-03T10:20:00Z"
         "400":
           description: Invalid JSON, group ID, or user ID.
           content:

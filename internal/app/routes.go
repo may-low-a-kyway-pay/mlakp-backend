@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
@@ -78,7 +77,7 @@ func openAPIHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func healthzHandler(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{
+	response.Success(w, http.StatusOK, map[string]string{
 		"status": "ok",
 	})
 }
@@ -98,18 +97,9 @@ func readyzHandler(checker interface {
 			}
 		}
 
-		writeJSON(w, http.StatusOK, map[string]string{
+		response.Success(w, http.StatusOK, map[string]string{
 			"status": "ready",
 		})
-	}
-}
-
-func writeJSON(w http.ResponseWriter, status int, body any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	if err := json.NewEncoder(w).Encode(body); err != nil {
-		slog.Default().Error("failed to write json response", "error", err)
 	}
 }
 
@@ -152,12 +142,7 @@ func recoverPanic(logger *slog.Logger) func(http.Handler) http.Handler {
 			defer func() {
 				if recovered := recover(); recovered != nil {
 					logger.ErrorContext(r.Context(), "panic recovered", "panic", recovered)
-					writeJSON(w, http.StatusInternalServerError, map[string]map[string]string{
-						"error": {
-							"code":    "internal_error",
-							"message": "Internal server error",
-						},
-					})
+					response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
 				}
 			}()
 

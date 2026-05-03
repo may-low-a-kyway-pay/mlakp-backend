@@ -34,7 +34,7 @@ func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]authUserResponse{
+	response.Success(w, http.StatusOK, map[string]authUserResponse{
 		"user": toAuthUserResponse(user),
 	})
 }

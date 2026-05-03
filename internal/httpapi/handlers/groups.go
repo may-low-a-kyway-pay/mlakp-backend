@@ -54,7 +54,7 @@ func (h *GroupHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusCreated, map[string]groupResponse{
+	response.Success(w, http.StatusCreated, map[string]groupResponse{
 		"group": toGroupResponse(group),
 	})
 }
@@ -77,7 +77,7 @@ func (h *GroupHandler) List(w http.ResponseWriter, r *http.Request) {
 		groupsResponse = append(groupsResponse, toGroupResponse(group))
 	}
 
-	response.JSON(w, http.StatusOK, map[string][]groupResponse{
+	response.Success(w, http.StatusOK, map[string][]groupResponse{
 		"groups": groupsResponse,
 	})
 }
@@ -100,7 +100,7 @@ func (h *GroupHandler) Get(w http.ResponseWriter, r *http.Request) {
 		members = append(members, toGroupMemberResponse(member))
 	}
 
-	response.JSON(w, http.StatusOK, map[string]any{
+	response.Success(w, http.StatusOK, map[string]any{
 		"group":   toGroupResponse(details.Group),
 		"members": members,
 	})
@@ -127,7 +127,7 @@ func (h *GroupHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusCreated, map[string]groupMemberResponse{
+	response.Success(w, http.StatusCreated, map[string]groupMemberResponse{
 		"member": toGroupMemberResponse(member),
 	})
 }

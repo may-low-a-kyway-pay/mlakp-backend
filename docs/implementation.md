@@ -753,9 +753,38 @@ Error response shape:
 
 ```json
 {
+  "success": false,
   "error": {
     "code": "debt_invalid_state",
     "message": "Debt cannot accept payments in its current state"
+  }
+}
+```
+
+Success response shape without pagination:
+
+```json
+{
+  "success": true,
+  "data": {
+    "resource": {}
+  }
+}
+```
+
+Success response shape with pagination:
+
+```json
+{
+  "success": true,
+  "data": {
+    "resources": []
+  },
+  "pagination": {
+    "page": 1,
+    "per_page": 20,
+    "total_items": 100,
+    "total_pages": 5
   }
 }
 ```

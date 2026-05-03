@@ -2,10 +2,21 @@
       type: object
       additionalProperties: false
       required:
-        - user
+        - success
+        - data
       properties:
-        user:
-          $ref: "#/components/schemas/User"
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - user
+          properties:
+            user:
+              $ref: "#/components/schemas/User"
     User:
       type: object
       additionalProperties: false

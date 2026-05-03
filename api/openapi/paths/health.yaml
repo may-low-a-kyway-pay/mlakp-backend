@@ -12,7 +12,9 @@
               schema:
                 $ref: "#/components/schemas/StatusResponse"
               example:
-                status: ok
+                success: true
+                data:
+                  status: ok
         "500":
           $ref: "#/components/responses/InternalError"
   /readyz:
@@ -29,7 +31,9 @@
               schema:
                 $ref: "#/components/schemas/StatusResponse"
               example:
-                status: ready
+                success: true
+                data:
+                  status: ready
         "503":
           description: The service is not ready.
           content:
@@ -37,6 +41,7 @@
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
+                success: false
                 error:
                   code: not_ready
                   message: Service is not ready

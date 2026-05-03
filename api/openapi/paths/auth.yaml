@@ -22,14 +22,16 @@
               schema:
                 $ref: "#/components/schemas/AuthTokenResponse"
               example:
-                access_token: eyJzdWIiOiIxMjMifQ.signature
-                refresh_token: opaque-refresh-token
-                token_type: Bearer
-                expires_at: "2026-05-02T12:15:00Z"
-                user:
-                  id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                  name: Thomas
-                  email: thomas@example.com
+                success: true
+                data:
+                  access_token: eyJzdWIiOiIxMjMifQ.signature
+                  refresh_token: opaque-refresh-token
+                  token_type: Bearer
+                  expires_at: "2026-05-02T12:15:00Z"
+                  user:
+                    id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                    name: Thomas
+                    email: thomas@example.com
         "400":
           description: Invalid JSON or invalid user input.
           content:
@@ -39,21 +41,25 @@
               examples:
                 invalidJson:
                   value:
+                    success: false
                     error:
                       code: invalid_json
                       message: Request body must be valid JSON
                 invalidName:
                   value:
+                    success: false
                     error:
                       code: invalid_name
                       message: Name must be between 1 and 120 characters
                 invalidEmail:
                   value:
+                    success: false
                     error:
                       code: invalid_email
                       message: Email is invalid
                 invalidPassword:
                   value:
+                    success: false
                     error:
                       code: invalid_password
                       message: Password must be at least 8 characters
@@ -64,6 +70,7 @@
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
+                success: false
                 error:
                   code: email_already_registered
                   message: Email is already registered
@@ -92,14 +99,16 @@
               schema:
                 $ref: "#/components/schemas/AuthTokenResponse"
               example:
-                access_token: eyJzdWIiOiIxMjMifQ.signature
-                refresh_token: opaque-refresh-token
-                token_type: Bearer
-                expires_at: "2026-05-02T12:15:00Z"
-                user:
-                  id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                  name: Thomas
-                  email: thomas@example.com
+                success: true
+                data:
+                  access_token: eyJzdWIiOiIxMjMifQ.signature
+                  refresh_token: opaque-refresh-token
+                  token_type: Bearer
+                  expires_at: "2026-05-02T12:15:00Z"
+                  user:
+                    id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                    name: Thomas
+                    email: thomas@example.com
         "400":
           description: Invalid JSON or invalid email syntax.
           content:
@@ -109,11 +118,13 @@
               examples:
                 invalidJson:
                   value:
+                    success: false
                     error:
                       code: invalid_json
                       message: Request body must be valid JSON
                 invalidEmail:
                   value:
+                    success: false
                     error:
                       code: invalid_email
                       message: Email is invalid
@@ -124,6 +135,7 @@
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
+                success: false
                 error:
                   code: invalid_credentials
                   message: Email or password is incorrect
@@ -139,8 +151,15 @@
       security:
         - bearerAuth: []
       responses:
-        "204":
-          description: Logout accepted. No response body.
+        "200":
+          description: Logout accepted and current session revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+              example:
+                success: true
+                data: null
         "401":
           description: Missing, malformed, expired, invalid, or stale access token.
           content:
@@ -148,6 +167,7 @@
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
+                success: false
                 error:
                   code: invalid_access_token
                   message: Access token is invalid or expired
@@ -175,10 +195,12 @@
               schema:
                 $ref: "#/components/schemas/RefreshTokenResponse"
               example:
-                access_token: eyJzdWIiOiIxMjMifQ.signature
-                refresh_token: rotated-refresh-token
-                token_type: Bearer
-                expires_at: "2026-05-02T12:15:00Z"
+                success: true
+                data:
+                  access_token: eyJzdWIiOiIxMjMifQ.signature
+                  refresh_token: rotated-refresh-token
+                  token_type: Bearer
+                  expires_at: "2026-05-02T12:15:00Z"
         "400":
           description: Invalid JSON.
           content:
@@ -186,6 +208,7 @@
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
+                success: false
                 error:
                   code: invalid_json
                   message: Request body must be valid JSON
@@ -196,6 +219,7 @@
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
+                success: false
                 error:
                   code: invalid_refresh_token
                   message: Refresh token is invalid or expired

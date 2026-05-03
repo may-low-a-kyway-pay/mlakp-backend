@@ -50,6 +50,32 @@
       type: object
       additionalProperties: false
       required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: "#/components/schemas/AuthTokenData"
+    RefreshTokenResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: "#/components/schemas/RefreshTokenData"
+    AuthTokenData:
+      type: object
+      additionalProperties: false
+      required:
         - access_token
         - refresh_token
         - token_type
@@ -71,7 +97,7 @@
           format: date-time
         user:
           $ref: "#/components/schemas/User"
-    RefreshTokenResponse:
+    RefreshTokenData:
       type: object
       additionalProperties: false
       required:

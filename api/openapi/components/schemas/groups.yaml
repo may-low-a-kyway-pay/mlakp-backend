@@ -21,41 +21,85 @@
       type: object
       additionalProperties: false
       required:
-        - group
+        - success
+        - data
       properties:
-        group:
-          $ref: "#/components/schemas/Group"
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - group
+          properties:
+            group:
+              $ref: "#/components/schemas/Group"
     GroupListResponse:
       type: object
       additionalProperties: false
       required:
-        - groups
+        - success
+        - data
       properties:
-        groups:
-          type: array
-          items:
-            $ref: "#/components/schemas/Group"
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - groups
+          properties:
+            groups:
+              type: array
+              items:
+                $ref: "#/components/schemas/Group"
     GroupDetailsResponse:
       type: object
       additionalProperties: false
       required:
-        - group
-        - members
+        - success
+        - data
       properties:
-        group:
-          $ref: "#/components/schemas/Group"
-        members:
-          type: array
-          items:
-            $ref: "#/components/schemas/GroupMember"
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - group
+            - members
+          properties:
+            group:
+              $ref: "#/components/schemas/Group"
+            members:
+              type: array
+              items:
+                $ref: "#/components/schemas/GroupMember"
     GroupMemberResponse:
       type: object
       additionalProperties: false
       required:
-        - member
+        - success
+        - data
       properties:
-        member:
-          $ref: "#/components/schemas/GroupMember"
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - member
+          properties:
+            member:
+              $ref: "#/components/schemas/GroupMember"
     Group:
       type: object
       additionalProperties: false

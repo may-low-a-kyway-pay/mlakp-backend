@@ -14,10 +14,12 @@
               schema:
                 $ref: "#/components/schemas/CurrentUserResponse"
               example:
-                user:
-                  id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                  name: Thomas
-                  email: thomas@example.com
+                success: true
+                data:
+                  user:
+                    id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                    name: Thomas
+                    email: thomas@example.com
         "401":
           description: Missing, malformed, expired, invalid, or stale access token.
           content:
@@ -27,21 +29,25 @@
               examples:
                 unauthenticated:
                   value:
+                    success: false
                     error:
                       code: unauthenticated
                       message: Authentication is required
                 invalidAuthorizationHeader:
                   value:
+                    success: false
                     error:
                       code: invalid_authorization_header
                       message: Authorization header must use Bearer token
                 invalidAccessToken:
                   value:
+                    success: false
                     error:
                       code: invalid_access_token
                       message: Access token is invalid or expired
                 missingUser:
                   value:
+                    success: false
                     error:
                       code: invalid_access_token
                       message: Access token user no longer exists

@@ -31,7 +31,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/StatusResponse"
               example:
-                status: ok
+                success: true
+                data:
+                  status: ok
         "500":
           $ref: "#/components/responses/InternalError"
   /readyz:
@@ -48,7 +50,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/StatusResponse"
               example:
-                status: ready
+                success: true
+                data:
+                  status: ready
         "503":
           description: The service is not ready.
           content:
@@ -56,6 +60,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
+                success: false
                 error:
                   code: not_ready
                   message: Service is not ready
@@ -85,14 +90,16 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuthTokenResponse"
               example:
-                access_token: eyJzdWIiOiIxMjMifQ.signature
-                refresh_token: opaque-refresh-token
-                token_type: Bearer
-                expires_at: "2026-05-02T12:15:00Z"
-                user:
-                  id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                  name: Thomas
-                  email: thomas@example.com
+                success: true
+                data:
+                  access_token: eyJzdWIiOiIxMjMifQ.signature
+                  refresh_token: opaque-refresh-token
+                  token_type: Bearer
+                  expires_at: "2026-05-02T12:15:00Z"
+                  user:
+                    id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                    name: Thomas
+                    email: thomas@example.com
         "400":
           description: Invalid JSON or invalid user input.
           content:
@@ -102,21 +109,25 @@ paths:
               examples:
                 invalidJson:
                   value:
+                    success: false
                     error:
                       code: invalid_json
                       message: Request body must be valid JSON
                 invalidName:
                   value:
+                    success: false
                     error:
                       code: invalid_name
                       message: Name must be between 1 and 120 characters
                 invalidEmail:
                   value:
+                    success: false
                     error:
                       code: invalid_email
                       message: Email is invalid
                 invalidPassword:
                   value:
+                    success: false
                     error:
                       code: invalid_password
                       message: Password must be at least 8 characters
@@ -127,6 +138,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
+                success: false
                 error:
                   code: email_already_registered
                   message: Email is already registered
@@ -155,14 +167,16 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuthTokenResponse"
               example:
-                access_token: eyJzdWIiOiIxMjMifQ.signature
-                refresh_token: opaque-refresh-token
-                token_type: Bearer
-                expires_at: "2026-05-02T12:15:00Z"
-                user:
-                  id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                  name: Thomas
-                  email: thomas@example.com
+                success: true
+                data:
+                  access_token: eyJzdWIiOiIxMjMifQ.signature
+                  refresh_token: opaque-refresh-token
+                  token_type: Bearer
+                  expires_at: "2026-05-02T12:15:00Z"
+                  user:
+                    id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                    name: Thomas
+                    email: thomas@example.com
         "400":
           description: Invalid JSON or invalid email syntax.
           content:
@@ -172,11 +186,13 @@ paths:
               examples:
                 invalidJson:
                   value:
+                    success: false
                     error:
                       code: invalid_json
                       message: Request body must be valid JSON
                 invalidEmail:
                   value:
+                    success: false
                     error:
                       code: invalid_email
                       message: Email is invalid
@@ -187,6 +203,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
+                success: false
                 error:
                   code: invalid_credentials
                   message: Email or password is incorrect
@@ -202,8 +219,15 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        "204":
-          description: Logout accepted. No response body.
+        "200":
+          description: Logout accepted and current session revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+              example:
+                success: true
+                data: null
         "401":
           description: Missing, malformed, expired, invalid, or stale access token.
           content:
@@ -211,6 +235,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
+                success: false
                 error:
                   code: invalid_access_token
                   message: Access token is invalid or expired
@@ -238,10 +263,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/RefreshTokenResponse"
               example:
-                access_token: eyJzdWIiOiIxMjMifQ.signature
-                refresh_token: rotated-refresh-token
-                token_type: Bearer
-                expires_at: "2026-05-02T12:15:00Z"
+                success: true
+                data:
+                  access_token: eyJzdWIiOiIxMjMifQ.signature
+                  refresh_token: rotated-refresh-token
+                  token_type: Bearer
+                  expires_at: "2026-05-02T12:15:00Z"
         "400":
           description: Invalid JSON.
           content:
@@ -249,6 +276,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
+                success: false
                 error:
                   code: invalid_json
                   message: Request body must be valid JSON
@@ -259,6 +287,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
+                success: false
                 error:
                   code: invalid_refresh_token
                   message: Refresh token is invalid or expired
@@ -280,10 +309,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/CurrentUserResponse"
               example:
-                user:
-                  id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                  name: Thomas
-                  email: thomas@example.com
+                success: true
+                data:
+                  user:
+                    id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                    name: Thomas
+                    email: thomas@example.com
         "401":
           description: Missing, malformed, expired, invalid, or stale access token.
           content:
@@ -293,21 +324,25 @@ paths:
               examples:
                 unauthenticated:
                   value:
+                    success: false
                     error:
                       code: unauthenticated
                       message: Authentication is required
                 invalidAuthorizationHeader:
                   value:
+                    success: false
                     error:
                       code: invalid_authorization_header
                       message: Authorization header must use Bearer token
                 invalidAccessToken:
                   value:
+                    success: false
                     error:
                       code: invalid_access_token
                       message: Access token is invalid or expired
                 missingUser:
                   value:
+                    success: false
                     error:
                       code: invalid_access_token
                       message: Access token user no longer exists
@@ -337,12 +372,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/GroupResponse"
               example:
-                group:
-                  id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
-                  name: Home
-                  created_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                  created_at: "2026-05-03T10:15:00Z"
-                  updated_at: "2026-05-03T10:15:00Z"
+                success: true
+                data:
+                  group:
+                    id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
+                    name: Home
+                    created_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                    created_at: "2026-05-03T10:15:00Z"
+                    updated_at: "2026-05-03T10:15:00Z"
         "400":
           description: Invalid JSON or invalid group input.
           content:
@@ -352,11 +389,13 @@ paths:
               examples:
                 invalidJson:
                   value:
+                    success: false
                     error:
                       code: invalid_json
                       message: Request body must be valid JSON
                 invalidGroupName:
                   value:
+                    success: false
                     error:
                       code: invalid_group_name
                       message: Group name must be between 1 and 120 characters
@@ -383,12 +422,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/GroupListResponse"
               example:
-                groups:
-                  - id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
-                    name: Home
-                    created_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                    created_at: "2026-05-03T10:15:00Z"
-                    updated_at: "2026-05-03T10:15:00Z"
+                success: true
+                data:
+                  groups:
+                    - id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
+                      name: Home
+                      created_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                      created_at: "2026-05-03T10:15:00Z"
+                      updated_at: "2026-05-03T10:15:00Z"
         "401":
           description: Missing, malformed, expired, invalid, or stale access token.
           content:
@@ -420,18 +461,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/GroupDetailsResponse"
               example:
-                group:
-                  id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
-                  name: Home
-                  created_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                  created_at: "2026-05-03T10:15:00Z"
-                  updated_at: "2026-05-03T10:15:00Z"
-                members:
-                  - id: 279ef8bd-90ec-47a6-883f-2bb664f9ec44
-                    group_id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
-                    user_id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
-                    role: owner
-                    joined_at: "2026-05-03T10:15:00Z"
+                success: true
+                data:
+                  group:
+                    id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
+                    name: Home
+                    created_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                    created_at: "2026-05-03T10:15:00Z"
+                    updated_at: "2026-05-03T10:15:00Z"
+                  members:
+                    - id: 279ef8bd-90ec-47a6-883f-2bb664f9ec44
+                      group_id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
+                      user_id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                      role: owner
+                      joined_at: "2026-05-03T10:15:00Z"
         "400":
           description: Invalid group ID.
           content:
@@ -483,12 +526,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/GroupMemberResponse"
               example:
-                member:
-                  id: 2d98a193-8d18-439e-a88f-9c79cf4ed12d
-                  group_id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
-                  user_id: 755a01f4-fc4e-483f-9d39-d8dccb7d77c0
-                  role: member
-                  joined_at: "2026-05-03T10:20:00Z"
+                success: true
+                data:
+                  member:
+                    id: 2d98a193-8d18-439e-a88f-9c79cf4ed12d
+                    group_id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
+                    user_id: 755a01f4-fc4e-483f-9d39-d8dccb7d77c0
+                    role: member
+                    joined_at: "2026-05-03T10:20:00Z"
         "400":
           description: Invalid JSON, group ID, or user ID.
           content:
@@ -535,6 +580,7 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
           example:
+            success: false
             error:
               code: internal_error
               message: Internal server error
@@ -543,27 +589,95 @@ components:
       type: object
       additionalProperties: false
       required:
-        - status
+        - success
+        - data
       properties:
-        status:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - status
+          properties:
+            status:
+              type: string
+    Pagination:
+      type: object
+      additionalProperties: false
+      required:
+        - page
+        - per_page
+        - total_items
+        - total_pages
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        per_page:
+          type: integer
+          minimum: 1
+        total_items:
+          type: integer
+          minimum: 0
+        total_pages:
+          type: integer
+          minimum: 0
+    SuccessResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          nullable: true
+    PaginatedResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+        - pagination
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          nullable: true
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
           type: string
     ErrorResponse:
       type: object
       additionalProperties: false
       required:
+        - success
         - error
       properties:
+        success:
+          type: boolean
+          enum:
+            - false
         error:
-          type: object
-          additionalProperties: false
-          required:
-            - code
-            - message
-          properties:
-            code:
-              type: string
-            message:
-              type: string
+          $ref: "#/components/schemas/ErrorDetail"
     RegisterRequest:
       type: object
       additionalProperties: false
@@ -616,6 +730,32 @@ components:
       type: object
       additionalProperties: false
       required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: "#/components/schemas/AuthTokenData"
+    RefreshTokenResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: "#/components/schemas/RefreshTokenData"
+    AuthTokenData:
+      type: object
+      additionalProperties: false
+      required:
         - access_token
         - refresh_token
         - token_type
@@ -637,7 +777,7 @@ components:
           format: date-time
         user:
           $ref: "#/components/schemas/User"
-    RefreshTokenResponse:
+    RefreshTokenData:
       type: object
       additionalProperties: false
       required:
@@ -663,10 +803,21 @@ components:
       type: object
       additionalProperties: false
       required:
-        - user
+        - success
+        - data
       properties:
-        user:
-          $ref: "#/components/schemas/User"
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - user
+          properties:
+            user:
+              $ref: "#/components/schemas/User"
     User:
       type: object
       additionalProperties: false
@@ -708,41 +859,85 @@ components:
       type: object
       additionalProperties: false
       required:
-        - group
+        - success
+        - data
       properties:
-        group:
-          $ref: "#/components/schemas/Group"
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - group
+          properties:
+            group:
+              $ref: "#/components/schemas/Group"
     GroupListResponse:
       type: object
       additionalProperties: false
       required:
-        - groups
+        - success
+        - data
       properties:
-        groups:
-          type: array
-          items:
-            $ref: "#/components/schemas/Group"
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - groups
+          properties:
+            groups:
+              type: array
+              items:
+                $ref: "#/components/schemas/Group"
     GroupDetailsResponse:
       type: object
       additionalProperties: false
       required:
-        - group
-        - members
+        - success
+        - data
       properties:
-        group:
-          $ref: "#/components/schemas/Group"
-        members:
-          type: array
-          items:
-            $ref: "#/components/schemas/GroupMember"
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - group
+            - members
+          properties:
+            group:
+              $ref: "#/components/schemas/Group"
+            members:
+              type: array
+              items:
+                $ref: "#/components/schemas/GroupMember"
     GroupMemberResponse:
       type: object
       additionalProperties: false
       required:
-        - member
+        - success
+        - data
       properties:
-        member:
-          $ref: "#/components/schemas/GroupMember"
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - member
+          properties:
+            member:
+              $ref: "#/components/schemas/GroupMember"
     Group:
       type: object
       additionalProperties: false

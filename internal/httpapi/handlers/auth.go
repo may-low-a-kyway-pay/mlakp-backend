@@ -77,7 +77,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusCreated, tokenResponse{
+	response.Success(w, http.StatusCreated, tokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
@@ -118,7 +118,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, tokenResponse{
+	response.Success(w, http.StatusOK, tokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
@@ -152,7 +152,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, refreshResponse{
+	response.Success(w, http.StatusOK, refreshResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
@@ -171,7 +171,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	response.Success(w, http.StatusOK, nil)
 }
 
 func writeUserError(w http.ResponseWriter, err error) {

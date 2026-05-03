@@ -20,7 +20,7 @@ func TestHealthz(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("response.Code = %d, want %d", response.Code, http.StatusOK)
 	}
-	if response.Body.String() != "{\"status\":\"ok\"}\n" {
+	if response.Body.String() != "{\"success\":true,\"data\":{\"status\":\"ok\"}}\n" {
 		t.Fatalf("response.Body = %q, want health response", response.Body.String())
 	}
 }
@@ -36,7 +36,7 @@ func TestReadyz(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("response.Code = %d, want %d", response.Code, http.StatusOK)
 	}
-	if response.Body.String() != "{\"status\":\"ready\"}\n" {
+	if response.Body.String() != "{\"success\":true,\"data\":{\"status\":\"ready\"}}\n" {
 		t.Fatalf("response.Body = %q, want ready response", response.Body.String())
 	}
 }

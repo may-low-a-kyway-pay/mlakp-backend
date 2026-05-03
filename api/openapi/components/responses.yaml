@@ -6,6 +6,7 @@
           schema:
             $ref: "#/components/schemas/ErrorResponse"
           example:
+            success: false
             error:
               code: internal_error
               message: Internal server error

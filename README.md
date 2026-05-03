@@ -191,7 +191,7 @@ curl -i http://localhost:8080/healthz
 Expected response:
 
 ```json
-{"status":"ok"}
+{"success":true,"data":{"status":"ok"}}
 ```
 
 Check readiness:
@@ -203,7 +203,7 @@ curl -i http://localhost:8080/readyz
 Expected response when PostgreSQL is reachable:
 
 ```json
-{"status":"ready"}
+{"success":true,"data":{"status":"ready"}}
 ```
 
 Open Swagger UI:
@@ -236,14 +236,17 @@ The response includes access and refresh tokens:
 
 ```json
 {
-  "access_token": "...",
-  "refresh_token": "...",
-  "token_type": "Bearer",
-  "expires_at": "2026-05-02T12:15:00Z",
-  "user": {
-    "id": "...",
-    "name": "Thomas",
-    "email": "thomas@example.com"
+  "success": true,
+  "data": {
+    "access_token": "...",
+    "refresh_token": "...",
+    "token_type": "Bearer",
+    "expires_at": "2026-05-02T12:15:00Z",
+    "user": {
+      "id": "...",
+      "name": "Thomas",
+      "email": "thomas@example.com"
+    }
   }
 }
 ```
