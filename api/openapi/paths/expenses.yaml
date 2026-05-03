@@ -1,0 +1,67 @@
+  /v1/expenses:
+    post:
+      tags:
+        - Expenses
+      summary: Create an expense
+      description: Creates an expense, inserts participants, and generates pending debts for participants other than the payer.
+      operationId: createExpense
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExpenseRequest"
+            examples:
+              equal:
+                value:
+                  group_id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
+                  title: Dinner
+                  total_amount: "100.00"
+                  currency: THB
+                  paid_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                  split_type: equal
+                  participants:
+                    - user_id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                    - user_id: 755a01f4-fc4e-483f-9d39-d8dccb7d77c0
+              manual:
+                value:
+                  group_id: b2c1c30f-5c3e-4376-9d4e-ef56ef7c8b81
+                  title: Groceries
+                  total_amount: "100.00"
+                  currency: THB
+                  paid_by: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                  split_type: manual
+                  participants:
+                    - user_id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                      share_amount: "40.00"
+                    - user_id: 755a01f4-fc4e-483f-9d39-d8dccb7d77c0
+                      share_amount: "60.00"
+      responses:
+        "201":
+          description: Expense created and debts generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateExpenseResponse"
+        "400":
+          description: Invalid request, split, payer, or participant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing, malformed, expired, invalid, or stale access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Current user is not a group member.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"

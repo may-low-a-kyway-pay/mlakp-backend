@@ -1,0 +1,176 @@
+  /v1/debts/{debtID}:
+    post:
+      tags:
+        - Debts
+      summary: Update a debt state
+      description: Moves the authenticated debtor's pending debt to accepted or rejected state.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: debtID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDebtRequest"
+            examples:
+              accept:
+                value:
+                  type: accept
+              reject:
+                value:
+                  type: reject
+      responses:
+        "200":
+          description: Debt state updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DebtResponse"
+        "400":
+          description: Invalid debt ID, JSON, or transition type.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid_debt_id:
+                  value:
+                    success: false
+                    error:
+                      code: invalid_debt_id
+                      message: Debt ID is invalid
+                invalid_debt_transition_type:
+                  value:
+                    success: false
+                    error:
+                      code: invalid_debt_transition_type
+                      message: Debt transition type must be accept or reject
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Current user is not the debtor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                debt_forbidden:
+                  value:
+                    success: false
+                    error:
+                      code: debt_forbidden
+                      message: You are not allowed to update this debt
+        "404":
+          description: Debt not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                debt_not_found:
+                  value:
+                    success: false
+                    error:
+                      code: debt_not_found
+                      message: Debt was not found
+        "409":
+          description: Debt is not pending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid_debt_state:
+                  value:
+                    success: false
+                    error:
+                      code: invalid_debt_state
+                      message: Debt cannot be updated from its current state
+  /v1/debts/{debtID}/review:
+    post:
+      tags:
+        - Debts
+      summary: Review and resend a rejected debt
+      description: Allows a group owner to review a rejected debt, optionally adjust its amount, and resend it by moving it back to pending state.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: debtID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewRejectedDebtRequest"
+            examples:
+              resend_same_amount:
+                value: {}
+              adjust_and_resend:
+                value:
+                  amount: "25.00"
+      responses:
+        "200":
+          description: Debt reviewed and resent to debtor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DebtResponse"
+        "400":
+          description: Invalid debt ID, JSON, or amount.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid_amount:
+                  value:
+                    success: false
+                    error:
+                      code: invalid_amount
+                      message: Debt amount is invalid
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Current user is not a group owner for the debt's group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                debt_forbidden:
+                  value:
+                    success: false
+                    error:
+                      code: debt_forbidden
+                      message: You are not allowed to update this debt
+        "404":
+          description: Debt not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Debt is not rejected.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid_debt_state:
+                  value:
+                    success: false
+                    error:
+                      code: invalid_debt_state
+                      message: Debt cannot be updated from its current state

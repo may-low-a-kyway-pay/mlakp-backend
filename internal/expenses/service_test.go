@@ -1,0 +1,152 @@
+package expenses
+
+import (
+	"context"
+	"errors"
+	"testing"
+)
+
+func TestServiceCreateEqualSplit(t *testing.T) {
+	store := &fakeStore{}
+	service := NewService(store)
+
+	_, err := service.Create(context.Background(), CreateInput{
+		GroupID:     "group-1",
+		Title:       " Dinner ",
+		TotalAmount: "100.00",
+		PaidBy:      "payer-1",
+		SplitType:   SplitTypeEqual,
+		Participants: []ParticipantInput{
+			{UserID: "payer-1"},
+			{UserID: "user-2"},
+			{UserID: "user-3"},
+		},
+		CreatedBy: "creator-1",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	if store.params.Title != "Dinner" {
+		t.Fatalf("Title = %q, want Dinner", store.params.Title)
+	}
+	if store.params.Currency != CurrencyTHB {
+		t.Fatalf("Currency = %q, want %q", store.params.Currency, CurrencyTHB)
+	}
+	if store.params.TotalMinor != 10000 {
+		t.Fatalf("TotalMinor = %d, want 10000", store.params.TotalMinor)
+	}
+	wantShares := []int64{3333, 3333, 3334}
+	for i, participant := range store.params.Participants {
+		if participant.ShareMinor != wantShares[i] {
+			t.Fatalf("participant[%d].ShareMinor = %d, want %d", i, participant.ShareMinor, wantShares[i])
+		}
+	}
+}
+
+func TestServiceCreateManualSplit(t *testing.T) {
+	store := &fakeStore{}
+	service := NewService(store)
+
+	_, err := service.Create(context.Background(), CreateInput{
+		GroupID:     "group-1",
+		Title:       "Dinner",
+		TotalAmount: "100.00",
+		PaidBy:      "payer-1",
+		SplitType:   SplitTypeManual,
+		Participants: []ParticipantInput{
+			{UserID: "payer-1", ShareAmount: stringPtr("40.00")},
+			{UserID: "user-2", ShareAmount: stringPtr("60.00")},
+		},
+		CreatedBy: "creator-1",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	if got := store.params.Participants[1].ShareMinor; got != 6000 {
+		t.Fatalf("manual share = %d, want 6000", got)
+	}
+}
+
+func TestServiceCreateRejectsInvalidInput(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   CreateInput
+		wantErr error
+	}{
+		{name: "missing group", input: validCreateInput(func(input *CreateInput) { input.GroupID = " " }), wantErr: ErrInvalidGroupID},
+		{name: "invalid title", input: validCreateInput(func(input *CreateInput) { input.Title = " " }), wantErr: ErrInvalidTitle},
+		{name: "invalid amount", input: validCreateInput(func(input *CreateInput) { input.TotalAmount = "1.234" }), wantErr: ErrInvalidAmount},
+		{name: "invalid currency", input: validCreateInput(func(input *CreateInput) { input.Currency = "USD" }), wantErr: ErrInvalidCurrency},
+		{name: "missing payer", input: validCreateInput(func(input *CreateInput) { input.PaidBy = " " }), wantErr: ErrInvalidPayerID},
+		{name: "invalid split type", input: validCreateInput(func(input *CreateInput) { input.SplitType = "weighted" }), wantErr: ErrInvalidSplitType},
+		{name: "duplicate participant", input: validCreateInput(func(input *CreateInput) {
+			input.Participants = append(input.Participants, ParticipantInput{UserID: "user-2"})
+		}), wantErr: ErrDuplicateParticipant},
+		{name: "no debtor participant", input: validCreateInput(func(input *CreateInput) {
+			input.Participants = []ParticipantInput{{UserID: "payer-1"}}
+		}), wantErr: ErrNoDebtorParticipant},
+		{name: "manual missing share", input: validCreateInput(func(input *CreateInput) {
+			input.SplitType = SplitTypeManual
+		}), wantErr: ErrInvalidManualShare},
+		{name: "manual mismatch", input: validCreateInput(func(input *CreateInput) {
+			input.SplitType = SplitTypeManual
+			input.Participants = []ParticipantInput{
+				{UserID: "payer-1", ShareAmount: stringPtr("40.00")},
+				{UserID: "user-2", ShareAmount: stringPtr("50.00")},
+			}
+		}), wantErr: ErrSplitMismatch},
+		{name: "invalid receipt url", input: validCreateInput(func(input *CreateInput) {
+			input.ReceiptURL = stringPtr("ftp://example.com/receipt")
+		}), wantErr: ErrInvalidReceiptURL},
+		{name: "invalid expense date", input: validCreateInput(func(input *CreateInput) {
+			input.ExpenseDate = stringPtr("2026/05/03")
+		}), wantErr: ErrInvalidExpenseDate},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := NewService(&fakeStore{})
+			_, err := service.Create(context.Background(), tt.input)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("Create() error = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type fakeStore struct {
+	params createParams
+}
+
+func (s *fakeStore) Create(_ context.Context, params createParams) (CreatedExpense, error) {
+	s.params = params
+	return CreatedExpense{}, nil
+}
+
+func validCreateInput(mutators ...func(*CreateInput)) CreateInput {
+	input := CreateInput{
+		GroupID:     "group-1",
+		Title:       "Dinner",
+		TotalAmount: "100.00",
+		Currency:    CurrencyTHB,
+		PaidBy:      "payer-1",
+		SplitType:   SplitTypeEqual,
+		Participants: []ParticipantInput{
+			{UserID: "payer-1"},
+			{UserID: "user-2"},
+		},
+		CreatedBy: "creator-1",
+	}
+
+	for _, mutate := range mutators {
+		mutate(&input)
+	}
+
+	return input
+}
+
+func stringPtr(value string) *string {
+	return &value
+}

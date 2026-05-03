@@ -152,6 +152,9 @@ mlakp-backend/
 │   ├── sessions/
 │   ├── users/
 │   ├── groups/
+│   ├── money/
+│   ├── expenses/
+│   ├── debts/
 │   └── postgres/
 │       ├── db.go
 │       └── sqlc/
@@ -161,11 +164,14 @@ mlakp-backend/
 │   ├── 000002_auth_sessions.up.sql
 │   ├── 000002_auth_sessions.down.sql
 │   ├── 000003_groups.up.sql
-│   └── 000003_groups.down.sql
+│   ├── 000003_groups.down.sql
+│   ├── 000004_expenses.up.sql
+│   └── 000004_expenses.down.sql
 ├── queries/
 │   ├── users.sql
 │   ├── auth_sessions.sql
-│   └── groups.sql
+│   ├── groups.sql
+│   └── expenses.sql
 ├── scripts/
 │   └── openapi/
 ├── sqlc.yaml
@@ -187,14 +193,10 @@ Rules:
 - Keep `api/openapi.yaml` generated and served through `api/docs.go`.
 
 Planned domain packages still to add:
-- `internal/expenses`
-- `internal/debts`
 - `internal/payments`
 - `internal/dashboard`
 
 Planned query files still to add:
-- `queries/expenses.sql`
-- `queries/debts.sql`
 - `queries/payments.sql`
 - `queries/dashboard.sql`
 
@@ -232,10 +234,11 @@ Implemented:
 - User registration, login, refresh-token rotation, session-backed logout, and current-user lookup.
 - Group creation, group listing, group details, and owner-only member addition.
 - Money parsing, formatting, validation, equal splitting, and manual split validation.
+- Expense creation with participant rows and generated pending debts.
+- Debt acceptance and rejection by the debtor.
+- Owner review and resend of rejected debts, with optional amount adjustment.
 
 Not implemented yet:
-- Expense creation and debt generation.
-- Debt acceptance/rejection.
 - Payment marking and confirmation.
 - Dashboard totals.
 - Docker and CI.
@@ -398,12 +401,13 @@ Allowed values:
 Allowed transitions:
 - `pending -> accepted`
 - `pending -> rejected`
+- `rejected -> pending` through group-owner review/resend
 - `accepted -> partially_settled`
 - `accepted -> settled`
 - `partially_settled -> settled`
 
 Disallowed:
-- `rejected -> accepted`
+- Direct `rejected -> accepted`
 - `settled -> partially_settled`
 - Any payment against `pending`, `rejected`, or `settled` debt.
 
@@ -445,8 +449,8 @@ POST   /v1/expenses
 GET    /v1/expenses/{expenseID}
 GET    /v1/groups/{groupID}/expenses
 
-POST   /v1/debts/{debtID}/accept
-POST   /v1/debts/{debtID}/reject
+POST   /v1/debts/{debtID}
+POST   /v1/debts/{debtID}/review
 GET    /v1/debts
 
 POST   /v1/debts/{debtID}/payments
@@ -522,6 +526,7 @@ Authorization requirements:
 - Payer must be a valid user and, for group expenses, a group member.
 - Participants must be valid users and, for group expenses, group members.
 - Only debtor can accept or reject their debt.
+- Only group owner can review and resend a rejected debt.
 - Only debtor can create payment records for their debt.
 - Only creditor can confirm or reject payment records.
 - Historical debts and payments remain accessible to involved users for audit purposes.
@@ -628,6 +633,7 @@ Rule:
 Rules:
 - Only debtor.
 - Only from `pending`.
+- Request body uses `"type": "accept"`.
 - Set `accepted_at`.
 
 ### Reject Debt
@@ -635,8 +641,22 @@ Rules:
 Rules:
 - Only debtor.
 - Only from `pending`.
+- Request body uses `"type": "reject"`.
 - Set `rejected_at`.
 - Exclude from dashboard totals.
+
+### Review Rejected Debt
+
+Rules:
+- Only group owner.
+- Only from `rejected`.
+- Request body may include optional `"amount": "25.00"`.
+- If amount is omitted, resend with the existing debt amount.
+- If amount is present, it must be positive and use the same money format as expense amounts.
+- Set `original_amount_minor` and `remaining_amount_minor` to the adjusted amount when provided.
+- Set status back to `pending`.
+- Clear `accepted_at`, `rejected_at`, and `settled_at`.
+- The debtor must accept or reject the resent debt again.
 
 ### Mark Payment
 
@@ -926,9 +946,9 @@ Recommended order:
 10. Add users. Done.
 11. Add groups and membership authorization. Done.
 12. Add money package. Done.
-13. Add expenses and split logic. Next.
-14. Add debt acceptance/rejection.
-15. Add payments and confirmation logic.
+13. Add expenses and split logic. Done.
+14. Add debt acceptance/rejection. Done.
+15. Add payments and confirmation logic. Next.
 16. Add dashboard.
 17. Add Docker and CI.
 

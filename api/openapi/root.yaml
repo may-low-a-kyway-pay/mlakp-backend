@@ -15,3 +15,7 @@ tags:
     description: Authenticated user profile operations.
   - name: Groups
     description: Group creation and membership management.
+  - name: Expenses
+    description: Expense creation and debt generation.
+  - name: Debts
+    description: Debt state transitions.

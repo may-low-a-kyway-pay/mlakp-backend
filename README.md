@@ -1,6 +1,6 @@
 # MLAKP Backend
 
-Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation, user registration, login, refresh, session-backed logout, the authenticated current-user endpoint, and authenticated group creation, listing, details, and member management.
+Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation, user registration, login, refresh, session-backed logout, the authenticated current-user endpoint, authenticated group creation, listing, details, member management, expense creation with generated pending debts, debtor-only debt acceptance/rejection, and owner review/resend for rejected debts.
 
 ## Requirements
 
@@ -155,6 +155,14 @@ The third migration creates:
 - owner/member role constraint
 - group membership uniqueness constraint
 - group membership lookup index
+
+The fourth migration creates:
+
+- `expenses` table
+- `expense_participants` table
+- `debts` table
+- expense, participant, and debt integrity constraints
+- indexes for group expense lists and debt lookups
 
 To roll back one migration:
 
@@ -388,6 +396,8 @@ internal/httpapi/response/      JSON response helpers
 internal/users/                 User domain service and repository
 internal/groups/                Group domain service and repository
 internal/money/                 Minor-unit money parsing, formatting, and splitting
+internal/expenses/              Expense creation and debt generation
+internal/debts/                 Debt state transitions and rejected-debt review
 internal/postgres/              PostgreSQL pool setup
 internal/postgres/sqlc/         Generated sqlc database code
 queries/                        SQL queries consumed by sqlc
