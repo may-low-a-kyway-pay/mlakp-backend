@@ -14,6 +14,8 @@ import (
 	"mlakp-backend/internal/app"
 	"mlakp-backend/internal/auth"
 	"mlakp-backend/internal/config"
+	"mlakp-backend/internal/debts"
+	"mlakp-backend/internal/expenses"
 	"mlakp-backend/internal/groups"
 	"mlakp-backend/internal/httpapi/handlers"
 	"mlakp-backend/internal/postgres"
@@ -52,6 +54,10 @@ func main() {
 	sessionService := sessions.NewService(sessionRepository, cfg.RefreshTokenTTL)
 	groupRepository := groups.NewRepository(dbPool, queries)
 	groupService := groups.NewService(groupRepository)
+	expenseRepository := expenses.NewRepository(dbPool, queries)
+	expenseService := expenses.NewService(expenseRepository)
+	debtRepository := debts.NewRepository(queries)
+	debtService := debts.NewService(debtRepository)
 
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%s", cfg.AppPort),
@@ -59,6 +65,8 @@ func main() {
 			AuthHandler:      handlers.NewAuthHandler(userService, tokenManager, sessionService),
 			UserHandler:      handlers.NewUserHandler(userService),
 			GroupHandler:     handlers.NewGroupHandler(groupService),
+			ExpenseHandler:   handlers.NewExpenseHandler(expenseService),
+			DebtHandler:      handlers.NewDebtHandler(debtService),
 			TokenManager:     tokenManager,
 			SessionService:   sessionService,
 			ReadinessChecker: dbPool,

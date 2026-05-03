@@ -18,6 +18,45 @@ type AuthSession struct {
 	LastUsedAt       pgtype.Timestamptz
 }
 
+type Debt struct {
+	ID                   pgtype.UUID
+	ExpenseID            pgtype.UUID
+	DebtorID             pgtype.UUID
+	CreditorID           pgtype.UUID
+	OriginalAmountMinor  int64
+	RemainingAmountMinor int64
+	Status               string
+	AcceptedAt           pgtype.Timestamptz
+	RejectedAt           pgtype.Timestamptz
+	SettledAt            pgtype.Timestamptz
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+}
+
+type Expense struct {
+	ID               pgtype.UUID
+	GroupID          pgtype.UUID
+	Title            string
+	Description      pgtype.Text
+	TotalAmountMinor int64
+	Currency         string
+	PaidBy           pgtype.UUID
+	SplitType        string
+	ReceiptUrl       pgtype.Text
+	ExpenseDate      pgtype.Date
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+}
+
+type ExpenseParticipant struct {
+	ID               pgtype.UUID
+	ExpenseID        pgtype.UUID
+	UserID           pgtype.UUID
+	ShareAmountMinor int64
+	CreatedAt        pgtype.Timestamptz
+}
+
 type Group struct {
 	ID        pgtype.UUID
 	Name      string

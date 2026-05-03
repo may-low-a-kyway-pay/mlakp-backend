@@ -111,6 +111,12 @@ Debtors must:
 - Accept → status becomes Accepted
 - Reject → status becomes Rejected
 
+If a debtor rejects:
+- The rejected debt is excluded from financial totals while it remains rejected.
+- A group owner can review the rejected debt.
+- The group owner can resend it with the same amount or adjust the amount before resending.
+- Resending moves the debt back to Pending so the debtor can accept or reject again.
+
 ---
 
 ### 3.5 Payment Recording
@@ -195,6 +201,7 @@ Future versions may support cancellation or correction flows, but they must pres
 - System does not process real money
 - Pending debts (not accepted) must not be included in dashboard totals
 - If all debtors reject, the expense has no financial effect
+- If one debtor rejects and another accepts, only the accepted debt remains financially active until the rejected debt is reviewed and resent.
 - Expenses cannot be edited or deleted in the MVP
 - System must handle rounding differences to ensure total equals expense amount
 - All amounts are assumed to be in a single currency
