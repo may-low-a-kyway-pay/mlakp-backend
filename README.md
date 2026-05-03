@@ -1,6 +1,6 @@
 # MLAKP Backend
 
-Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation, user registration, login, refresh, session-backed logout, and the authenticated current-user endpoint.
+Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation, user registration, login, refresh, session-backed logout, the authenticated current-user endpoint, and authenticated group creation, listing, details, and member management.
 
 ## Requirements
 
@@ -148,6 +148,14 @@ The second migration creates:
 - refresh token hash uniqueness constraint
 - active-session lookup index
 
+The third migration creates:
+
+- `groups` table
+- `group_members` table
+- owner/member role constraint
+- group membership uniqueness constraint
+- group membership lookup index
+
 To roll back one migration:
 
 ```sh
@@ -265,6 +273,31 @@ curl -s http://localhost:8080/v1/users/me \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+Create a group:
+
+```sh
+curl -s -X POST http://localhost:8080/v1/groups \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Home"}'
+```
+
+List your groups:
+
+```sh
+curl -s http://localhost:8080/v1/groups \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Add a member as the group owner:
+
+```sh
+curl -s -X POST http://localhost:8080/v1/groups/$GROUP_ID/members \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"user_id":"USER_ID_TO_ADD"}'
+```
+
 Refresh the access token:
 
 ```sh
@@ -300,7 +333,7 @@ Run `go vet`:
 make vet
 ```
 
-Run format, vet, and tests:
+Regenerate OpenAPI, format, vet, and run tests:
 
 ```sh
 make check
@@ -318,6 +351,26 @@ Generated SQL code is written to:
 internal/postgres/sqlc/
 ```
 
+Regenerate the served OpenAPI document after changing files in `api/openapi/`:
+
+```sh
+make openapi
+```
+
+Edit the split OpenAPI source files by feature:
+
+```text
+api/openapi/root.yaml
+api/openapi/paths/
+api/openapi/components/
+```
+
+The generated document served by the app is:
+
+```text
+api/openapi.yaml
+```
+
 ## Project Layout
 
 ```text
@@ -330,11 +383,14 @@ internal/httpapi/handlers/      HTTP request handlers
 internal/httpapi/middleware/    Authentication middleware
 internal/httpapi/response/      JSON response helpers
 internal/users/                 User domain service and repository
+internal/groups/                Group domain service and repository
 internal/postgres/              PostgreSQL pool setup
 internal/postgres/sqlc/         Generated sqlc database code
 queries/                        SQL queries consumed by sqlc
 migrations/                     PostgreSQL schema migrations
-api/openapi.yaml                OpenAPI contract
+api/openapi/                    Split OpenAPI source files
+api/openapi.yaml                Generated OpenAPI contract served by the app
+scripts/openapi/                OpenAPI bundler
 docs/                           Product and implementation planning docs
 ```
 

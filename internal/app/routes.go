@@ -18,6 +18,7 @@ import (
 type RouterDeps struct {
 	AuthHandler      *handlers.AuthHandler
 	UserHandler      *handlers.UserHandler
+	GroupHandler     *handlers.GroupHandler
 	TokenManager     *auth.TokenManager
 	SessionService   *sessions.Service
 	ReadinessChecker interface {
@@ -28,6 +29,7 @@ type RouterDeps struct {
 func NewRouter(logger *slog.Logger, deps RouterDeps) http.Handler {
 	mux := http.NewServeMux()
 
+	// Public routes must stay outside the authenticated middleware.
 	mux.HandleFunc("GET /healthz", healthzHandler)
 	mux.HandleFunc("GET /readyz", readyzHandler(deps.ReadinessChecker))
 	mux.HandleFunc("GET /docs", docsHandler)
@@ -45,6 +47,13 @@ func NewRouter(logger *slog.Logger, deps RouterDeps) http.Handler {
 	if deps.UserHandler != nil && deps.TokenManager != nil {
 		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
 		mux.Handle("GET /v1/users/me", authenticated(http.HandlerFunc(deps.UserHandler.Me)))
+	}
+	if deps.GroupHandler != nil && deps.TokenManager != nil {
+		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
+		mux.Handle("POST /v1/groups", authenticated(http.HandlerFunc(deps.GroupHandler.Create)))
+		mux.Handle("GET /v1/groups", authenticated(http.HandlerFunc(deps.GroupHandler.List)))
+		mux.Handle("GET /v1/groups/{groupID}", authenticated(http.HandlerFunc(deps.GroupHandler.Get)))
+		mux.Handle("POST /v1/groups/{groupID}/members", authenticated(http.HandlerFunc(deps.GroupHandler.AddMember)))
 	}
 
 	return recoverPanic(logger)(requestLogger(logger)(secureHeaders(mux)))
@@ -79,6 +88,7 @@ func readyzHandler(checker interface {
 }) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if checker != nil {
+			// Readiness should fail quickly instead of tying up health probes.
 			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 			defer cancel()
 

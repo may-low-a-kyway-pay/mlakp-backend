@@ -1,0 +1,95 @@
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Email is normalized to lowercase before storage.
+        password:
+          type: string
+          format: password
+          minLength: 8
+          writeOnly: true
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 1
+          writeOnly: true
+    RefreshTokenRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          minLength: 1
+          writeOnly: true
+    AuthTokenResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - access_token
+        - refresh_token
+        - token_type
+        - expires_at
+        - user
+      properties:
+        access_token:
+          type: string
+          description: Short-lived HMAC-SHA256 signed access token.
+        refresh_token:
+          type: string
+          description: Opaque refresh token. Store securely on the client.
+        token_type:
+          type: string
+          enum:
+            - Bearer
+        expires_at:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/User"
+    RefreshTokenResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - access_token
+        - refresh_token
+        - token_type
+        - expires_at
+      properties:
+        access_token:
+          type: string
+          description: Short-lived HMAC-SHA256 signed access token.
+        refresh_token:
+          type: string
+          description: Rotated opaque refresh token. Replaces the previous refresh token.
+        token_type:
+          type: string
+          enum:
+            - Bearer
+        expires_at:
+          type: string
+          format: date-time

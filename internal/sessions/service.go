@@ -78,6 +78,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (Session, st
 		return Session{}, "", err
 	}
 
+	// Rotation makes refresh tokens single-use; the old hash must stop matching.
 	session, err := s.store.RotateRefreshToken(ctx, hashRefreshToken(refreshToken), newTokenHash)
 	if err != nil {
 		if errors.Is(err, ErrInvalidRefreshToken) {
@@ -107,6 +108,7 @@ func newRefreshToken() (string, string, error) {
 	return token, hashRefreshToken(token), nil
 }
 
+// hashRefreshToken stores only a deterministic server-side fingerprint of the opaque token.
 func hashRefreshToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])

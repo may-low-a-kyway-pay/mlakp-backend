@@ -9,6 +9,7 @@ type BcryptHasher struct {
 func (h BcryptHasher) HashPassword(password string) (string, error) {
 	cost := h.Cost
 	if cost == 0 {
+		// Zero uses bcrypt's default; non-zero supports tests and explicit tuning.
 		cost = bcrypt.DefaultCost
 	}
 

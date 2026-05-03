@@ -43,6 +43,8 @@ func NewTokenManager(issuer, audience, secret string, ttl time.Duration) *TokenM
 	}
 }
 
+// IssueAccessToken creates the compact HMAC token format used by this service:
+// base64url(JSON claims) + "." + base64url(HMAC-SHA256(payload)).
 func (m *TokenManager) IssueAccessToken(_ context.Context, subject, sessionID string) (string, time.Time, error) {
 	if strings.TrimSpace(subject) == "" || strings.TrimSpace(sessionID) == "" {
 		return "", time.Time{}, ErrInvalidToken
@@ -82,6 +84,7 @@ func (m *TokenManager) ValidateAccessToken(token string) (Claims, error) {
 		return Claims{}, ErrInvalidToken
 	}
 
+	// Compare signatures before decoding claims so tampered payloads are rejected.
 	expectedSignature := m.sign(parts[0])
 	if !hmac.Equal([]byte(parts[1]), []byte(expectedSignature)) {
 		return Claims{}, ErrInvalidToken

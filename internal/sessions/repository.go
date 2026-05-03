@@ -57,6 +57,7 @@ func (r *Repository) GetActiveByID(ctx context.Context, id string) (Session, err
 }
 
 func (r *Repository) RotateRefreshToken(ctx context.Context, oldRefreshTokenHash, newRefreshTokenHash string) (Session, error) {
+	// The WHERE clause enforces active-session and old-token checks atomically.
 	session, err := r.queries.RotateRefreshToken(ctx, sqlc.RotateRefreshTokenParams{
 		RefreshTokenHash:   oldRefreshTokenHash,
 		RefreshTokenHash_2: newRefreshTokenHash,

@@ -1,0 +1,49 @@
+  /v1/users/me:
+    get:
+      tags:
+        - Users
+      summary: Get current authenticated user
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+              example:
+                user:
+                  id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                  name: Thomas
+                  email: thomas@example.com
+        "401":
+          description: Missing, malformed, expired, invalid, or stale access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                unauthenticated:
+                  value:
+                    error:
+                      code: unauthenticated
+                      message: Authentication is required
+                invalidAuthorizationHeader:
+                  value:
+                    error:
+                      code: invalid_authorization_header
+                      message: Authorization header must use Bearer token
+                invalidAccessToken:
+                  value:
+                    error:
+                      code: invalid_access_token
+                      message: Access token is invalid or expired
+                missingUser:
+                  value:
+                    error:
+                      code: invalid_access_token
+                      message: Access token user no longer exists
+        "500":
+          $ref: "#/components/responses/InternalError"

@@ -70,6 +70,7 @@ func Load() (Config, error) {
 	if strings.TrimSpace(cfg.TokenSecret) == "" {
 		errs = append(errs, errors.New("TOKEN_SECRET is required"))
 	} else if cfg.AppEnv == EnvProduction && len(cfg.TokenSecret) < 32 {
+		// Local/test secrets can be short, but production HMAC keys need real entropy.
 		errs = append(errs, errors.New("TOKEN_SECRET must be at least 32 bytes in production"))
 	}
 

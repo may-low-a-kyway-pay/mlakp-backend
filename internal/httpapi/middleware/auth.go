@@ -37,6 +37,7 @@ func Authenticate(tokenManager *auth.TokenManager, sessionValidator SessionValid
 				return
 			}
 			if sessionValidator != nil {
+				// Access tokens are valid only while their backing server session is active.
 				if err := sessionValidator.ValidateAccessSession(r.Context(), claims.SessionID); err != nil {
 					response.Error(w, http.StatusUnauthorized, "invalid_access_token", "Access token is invalid or expired")
 					return

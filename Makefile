@@ -1,7 +1,7 @@
 GOCACHE ?= /tmp/mlakp-go-build
 ENV_FILE ?= .env
 
-.PHONY: run test fmt vet check sqlc migrate-up migrate-down
+.PHONY: run test fmt vet check sqlc openapi migrate-up migrate-down
 
 run:
 	@if [ ! -f "$(ENV_FILE)" ]; then \
@@ -19,10 +19,13 @@ fmt:
 vet:
 	GOCACHE=$(GOCACHE) go vet ./...
 
-check: fmt vet test
+check: openapi fmt vet test
 
 sqlc:
 	sqlc generate
+
+openapi:
+	GOCACHE=$(GOCACHE) go run ./scripts/openapi
 
 migrate-up:
 	@if [ ! -f "$(ENV_FILE)" ]; then \

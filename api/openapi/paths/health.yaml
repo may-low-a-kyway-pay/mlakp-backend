@@ -1,0 +1,44 @@
+  /healthz:
+    get:
+      tags:
+        - Health
+      summary: Check process health
+      operationId: getHealthz
+      responses:
+        "200":
+          description: The process is running.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+              example:
+                status: ok
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /readyz:
+    get:
+      tags:
+        - Health
+      summary: Check service readiness
+      operationId: getReadyz
+      responses:
+        "200":
+          description: The service is ready to handle traffic.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+              example:
+                status: ready
+        "503":
+          description: The service is not ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: not_ready
+                  message: Service is not ready
+        "500":
+          $ref: "#/components/responses/InternalError"

@@ -14,6 +14,7 @@ import (
 	"mlakp-backend/internal/app"
 	"mlakp-backend/internal/auth"
 	"mlakp-backend/internal/config"
+	"mlakp-backend/internal/groups"
 	"mlakp-backend/internal/httpapi/handlers"
 	"mlakp-backend/internal/postgres"
 	"mlakp-backend/internal/postgres/sqlc"
@@ -41,6 +42,7 @@ func main() {
 	}
 	defer dbPool.Close()
 
+	// Wire dependencies manually to keep startup explicit as the domain grows.
 	queries := sqlc.New(dbPool)
 	userRepository := users.NewRepository(queries)
 	passwordHasher := auth.BcryptHasher{}
@@ -48,12 +50,15 @@ func main() {
 	tokenManager := auth.NewTokenManager(cfg.TokenIssuer, cfg.TokenAudience, cfg.TokenSecret, cfg.AccessTokenTTL)
 	sessionRepository := sessions.NewRepository(queries)
 	sessionService := sessions.NewService(sessionRepository, cfg.RefreshTokenTTL)
+	groupRepository := groups.NewRepository(dbPool, queries)
+	groupService := groups.NewService(groupRepository)
 
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%s", cfg.AppPort),
 		Handler: app.NewRouter(logger, app.RouterDeps{
 			AuthHandler:      handlers.NewAuthHandler(userService, tokenManager, sessionService),
 			UserHandler:      handlers.NewUserHandler(userService),
+			GroupHandler:     handlers.NewGroupHandler(groupService),
 			TokenManager:     tokenManager,
 			SessionService:   sessionService,
 			ReadinessChecker: dbPool,

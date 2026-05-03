@@ -18,6 +18,22 @@ type AuthSession struct {
 	LastUsedAt       pgtype.Timestamptz
 }
 
+type Group struct {
+	ID        pgtype.UUID
+	Name      string
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type GroupMember struct {
+	ID       pgtype.UUID
+	GroupID  pgtype.UUID
+	UserID   pgtype.UUID
+	Role     string
+	JoinedAt pgtype.Timestamptz
+}
+
 type User struct {
 	ID           pgtype.UUID
 	Name         string

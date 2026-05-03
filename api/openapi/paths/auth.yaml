@@ -1,0 +1,203 @@
+  /v1/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            example:
+              name: Thomas
+              email: thomas@example.com
+              password: password123
+      responses:
+        "201":
+          description: User registered and access token issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokenResponse"
+              example:
+                access_token: eyJzdWIiOiIxMjMifQ.signature
+                refresh_token: opaque-refresh-token
+                token_type: Bearer
+                expires_at: "2026-05-02T12:15:00Z"
+                user:
+                  id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                  name: Thomas
+                  email: thomas@example.com
+        "400":
+          description: Invalid JSON or invalid user input.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidJson:
+                  value:
+                    error:
+                      code: invalid_json
+                      message: Request body must be valid JSON
+                invalidName:
+                  value:
+                    error:
+                      code: invalid_name
+                      message: Name must be between 1 and 120 characters
+                invalidEmail:
+                  value:
+                    error:
+                      code: invalid_email
+                      message: Email is invalid
+                invalidPassword:
+                  value:
+                    error:
+                      code: invalid_password
+                      message: Password must be at least 8 characters
+        "409":
+          description: Email is already registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: email_already_registered
+                  message: Email is already registered
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login a user
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              email: thomas@example.com
+              password: password123
+      responses:
+        "200":
+          description: Credentials accepted and access token issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokenResponse"
+              example:
+                access_token: eyJzdWIiOiIxMjMifQ.signature
+                refresh_token: opaque-refresh-token
+                token_type: Bearer
+                expires_at: "2026-05-02T12:15:00Z"
+                user:
+                  id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
+                  name: Thomas
+                  email: thomas@example.com
+        "400":
+          description: Invalid JSON or invalid email syntax.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidJson:
+                  value:
+                    error:
+                      code: invalid_json
+                      message: Request body must be valid JSON
+                invalidEmail:
+                  value:
+                    error:
+                      code: invalid_email
+                      message: Email is invalid
+        "401":
+          description: Credentials are invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: invalid_credentials
+                  message: Email or password is incorrect
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout current client
+      description: Revokes the current server-side session. Access and refresh tokens tied to the session are rejected after logout.
+      operationId: logoutUser
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Logout accepted. No response body.
+        "401":
+          description: Missing, malformed, expired, invalid, or stale access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: invalid_access_token
+                  message: Access token is invalid or expired
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refresh access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+            example:
+              refresh_token: opaque-refresh-token
+      responses:
+        "200":
+          description: Refresh token accepted and rotated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshTokenResponse"
+              example:
+                access_token: eyJzdWIiOiIxMjMifQ.signature
+                refresh_token: rotated-refresh-token
+                token_type: Bearer
+                expires_at: "2026-05-02T12:15:00Z"
+        "400":
+          description: Invalid JSON.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: invalid_json
+                  message: Request body must be valid JSON
+        "401":
+          description: Refresh token is invalid, expired, rotated, or revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: invalid_refresh_token
+                  message: Refresh token is invalid or expired
+        "500":
+          $ref: "#/components/responses/InternalError"

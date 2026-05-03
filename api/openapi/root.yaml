@@ -1,0 +1,17 @@
+openapi: 3.0.3
+info:
+  title: MLAKP Shared Expense API
+  version: 0.1.0
+  description: HTTP API contract for the shared expense and debt tracking backend.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: Health
+    description: Service health and readiness checks.
+  - name: Auth
+    description: Registration, login, refresh, and session-backed logout.
+  - name: Users
+    description: Authenticated user profile operations.
+  - name: Groups
+    description: Group creation and membership management.
