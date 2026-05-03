@@ -255,6 +255,9 @@ Required constraints:
 Application rules:
 - Debt rows are generated from expense participants, excluding the payer.
 - Debt status changes must follow the debt state machine in the implementation guide.
+- A group owner can review a rejected debt and resend it by moving it back to `pending`.
+- During review/resend, the owner may adjust `original_amount_minor`; `remaining_amount_minor` is reset to match the resent amount.
+- Review/resend clears `accepted_at`, `rejected_at`, and `settled_at`.
 - Dashboard totals use `remaining_amount_minor`.
 
 ### payments
