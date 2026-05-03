@@ -387,6 +387,7 @@ internal/httpapi/middleware/    Authentication middleware
 internal/httpapi/response/      JSON response helpers
 internal/users/                 User domain service and repository
 internal/groups/                Group domain service and repository
+internal/money/                 Minor-unit money parsing, formatting, and splitting
 internal/postgres/              PostgreSQL pool setup
 internal/postgres/sqlc/         Generated sqlc database code
 queries/                        SQL queries consumed by sqlc

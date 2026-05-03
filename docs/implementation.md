@@ -187,7 +187,6 @@ Rules:
 - Keep `api/openapi.yaml` generated and served through `api/docs.go`.
 
 Planned domain packages still to add:
-- `internal/money`
 - `internal/expenses`
 - `internal/debts`
 - `internal/payments`
@@ -232,9 +231,9 @@ Implemented:
 - Embedded Swagger UI and generated OpenAPI artifact serving.
 - User registration, login, refresh-token rotation, session-backed logout, and current-user lookup.
 - Group creation, group listing, group details, and owner-only member addition.
+- Money parsing, formatting, validation, equal splitting, and manual split validation.
 
 Not implemented yet:
-- Money parsing/formatting/splitting package.
 - Expense creation and debt generation.
 - Debt acceptance/rejection.
 - Payment marking and confirmation.
@@ -926,8 +925,8 @@ Recommended order:
 9. Add auth. Done.
 10. Add users. Done.
 11. Add groups and membership authorization. Done.
-12. Add money package. Next.
-13. Add expenses and split logic.
+12. Add money package. Done.
+13. Add expenses and split logic. Next.
 14. Add debt acceptance/rejection.
 15. Add payments and confirmation logic.
 16. Add dashboard.
