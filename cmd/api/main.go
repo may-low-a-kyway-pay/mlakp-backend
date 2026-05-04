@@ -14,6 +14,7 @@ import (
 	"mlakp-backend/internal/app"
 	"mlakp-backend/internal/auth"
 	"mlakp-backend/internal/config"
+	"mlakp-backend/internal/dashboard"
 	"mlakp-backend/internal/debts"
 	"mlakp-backend/internal/expenses"
 	"mlakp-backend/internal/groups"
@@ -61,6 +62,8 @@ func main() {
 	debtService := debts.NewService(debtRepository)
 	paymentRepository := payments.NewRepository(dbPool, queries)
 	paymentService := payments.NewService(paymentRepository)
+	dashboardRepository := dashboard.NewRepository(queries)
+	dashboardService := dashboard.NewService(dashboardRepository)
 
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%s", cfg.AppPort),
@@ -71,6 +74,7 @@ func main() {
 			ExpenseHandler:   handlers.NewExpenseHandler(expenseService),
 			DebtHandler:      handlers.NewDebtHandler(debtService),
 			PaymentHandler:   handlers.NewPaymentHandler(paymentService),
+			DashboardHandler: handlers.NewDashboardHandler(dashboardService),
 			TokenManager:     tokenManager,
 			SessionService:   sessionService,
 			ReadinessChecker: dbPool,

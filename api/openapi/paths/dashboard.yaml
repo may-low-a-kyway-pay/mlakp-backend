@@ -1,0 +1,19 @@
+  /v1/dashboard:
+    get:
+      tags:
+        - Dashboard
+      summary: Get dashboard totals
+      description: Returns current-user you_owe and you_get totals from accepted and partially settled debts.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard totals.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"

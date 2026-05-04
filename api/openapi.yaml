@@ -22,6 +22,8 @@ tags:
     description: Debt state transitions.
   - name: Payments
     description: Payment marking and creditor review.
+  - name: Dashboard
+    description: Current-user financial summaries.
 paths:
   /healthz:
     get:
@@ -639,6 +641,103 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "500":
           $ref: "#/components/responses/InternalError"
+  /v1/expenses/{expenseID}:
+    get:
+      tags:
+        - Expenses
+      summary: Get an expense
+      description: Returns an expense with its participants and generated debts when the authenticated user is a group member.
+      operationId: getExpense
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: expenseID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Expense details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseDetailsResponse"
+        "400":
+          description: Invalid expense ID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Expense not found or not visible to the current user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/groups/{groupID}/expenses:
+    get:
+      tags:
+        - Expenses
+      summary: List group expenses
+      description: Lists expenses for a group when the authenticated user is a group member.
+      operationId: listGroupExpenses
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Group expenses.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListExpensesResponse"
+        "400":
+          description: Invalid group ID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Current user is not a group member.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/debts:
+    get:
+      tags:
+        - Debts
+      summary: List current-user debts
+      description: Lists debts where the authenticated user is either debtor or creditor.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current-user debts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DebtsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
   /v1/debts/{debtID}:
     post:
       tags:
@@ -948,6 +1047,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /v1/dashboard:
+    get:
+      tags:
+        - Dashboard
+      summary: Get dashboard totals
+      description: Returns current-user you_owe and you_get totals from accepted and partially settled debts.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard totals.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
 components:
   securitySchemes:
     bearerAuth:
@@ -1467,6 +1585,56 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/Debt"
+    ExpenseDetailsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - expense
+            - participants
+            - debts
+          properties:
+            expense:
+              $ref: "#/components/schemas/Expense"
+            participants:
+              type: array
+              items:
+                $ref: "#/components/schemas/ExpenseParticipant"
+            debts:
+              type: array
+              items:
+                $ref: "#/components/schemas/Debt"
+    ListExpensesResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - expenses
+          properties:
+            expenses:
+              type: array
+              items:
+                $ref: "#/components/schemas/Expense"
     Expense:
       type: object
       additionalProperties: false
@@ -1653,6 +1821,27 @@ components:
           properties:
             debt:
               $ref: "#/components/schemas/Debt"
+    DebtsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - debts
+          properties:
+            debts:
+              type: array
+              items:
+                $ref: "#/components/schemas/Debt"
     MarkPaymentRequest:
       type: object
       additionalProperties: false
@@ -1750,3 +1939,49 @@ components:
           properties:
             payment:
               $ref: "#/components/schemas/Payment"
+    DashboardAmount:
+      type: object
+      additionalProperties: false
+      required:
+        - amount
+        - amount_minor
+        - debt_count
+      properties:
+        amount:
+          type: string
+        amount_minor:
+          type: integer
+          format: int64
+        debt_count:
+          type: integer
+          format: int64
+    Dashboard:
+      type: object
+      additionalProperties: false
+      required:
+        - you_owe
+        - you_get
+      properties:
+        you_owe:
+          $ref: "#/components/schemas/DashboardAmount"
+        you_get:
+          $ref: "#/components/schemas/DashboardAmount"
+    DashboardResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - dashboard
+          properties:
+            dashboard:
+              $ref: "#/components/schemas/Dashboard"

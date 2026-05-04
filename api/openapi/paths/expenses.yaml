@@ -65,3 +65,81 @@
                 $ref: "#/components/schemas/ErrorResponse"
         "500":
           $ref: "#/components/responses/InternalError"
+  /v1/expenses/{expenseID}:
+    get:
+      tags:
+        - Expenses
+      summary: Get an expense
+      description: Returns an expense with its participants and generated debts when the authenticated user is a group member.
+      operationId: getExpense
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: expenseID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Expense details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseDetailsResponse"
+        "400":
+          description: Invalid expense ID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Expense not found or not visible to the current user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/groups/{groupID}/expenses:
+    get:
+      tags:
+        - Expenses
+      summary: List group expenses
+      description: Lists expenses for a group when the authenticated user is a group member.
+      operationId: listGroupExpenses
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Group expenses.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListExpensesResponse"
+        "400":
+          description: Invalid group ID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Current user is not a group member.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"

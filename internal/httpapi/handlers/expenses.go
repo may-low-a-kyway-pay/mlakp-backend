@@ -118,6 +118,55 @@ func (h *ExpenseHandler) Create(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *ExpenseHandler) Get(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+		return
+	}
+
+	details, err := h.expenses.Get(r.Context(), expenses.GetInput{
+		ExpenseID: r.PathValue("expenseID"),
+		UserID:    userID,
+	})
+	if err != nil {
+		writeExpenseError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, map[string]any{
+		"expense":      toExpenseResponse(details.Expense),
+		"participants": toExpenseParticipantResponses(details.Participants),
+		"debts":        toDebtResponses(details.Debts),
+	})
+}
+
+func (h *ExpenseHandler) ListByGroup(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+		return
+	}
+
+	expenseList, err := h.expenses.ListByGroup(r.Context(), expenses.ListByGroupInput{
+		GroupID: r.PathValue("groupID"),
+		UserID:  userID,
+	})
+	if err != nil {
+		writeExpenseError(w, err)
+		return
+	}
+
+	expensesResponse := make([]expenseResponse, 0, len(expenseList))
+	for _, expense := range expenseList {
+		expensesResponse = append(expensesResponse, toExpenseResponse(expense))
+	}
+
+	response.Success(w, http.StatusOK, map[string][]expenseResponse{
+		"expenses": expensesResponse,
+	})
+}
+
 func toParticipantInputs(participants []expenseParticipantRequest) []expenses.ParticipantInput {
 	inputs := make([]expenses.ParticipantInput, 0, len(participants))
 	for _, participant := range participants {
@@ -134,6 +183,8 @@ func writeExpenseError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, expenses.ErrInvalidGroupID):
 		response.Error(w, http.StatusBadRequest, "invalid_group_id", "Group ID is invalid")
+	case errors.Is(err, expenses.ErrInvalidExpenseID):
+		response.Error(w, http.StatusBadRequest, "invalid_expense_id", "Expense ID is invalid")
 	case errors.Is(err, expenses.ErrInvalidTitle):
 		response.Error(w, http.StatusBadRequest, "invalid_expense_title", "Expense title must be between 1 and 160 characters")
 	case errors.Is(err, expenses.ErrInvalidAmount):
@@ -159,7 +210,9 @@ func writeExpenseError(w http.ResponseWriter, err error) {
 	case errors.Is(err, expenses.ErrInvalidExpenseDate):
 		response.Error(w, http.StatusBadRequest, "invalid_expense_date", "Expense date is invalid")
 	case errors.Is(err, expenses.ErrForbidden):
-		response.Error(w, http.StatusForbidden, "expense_forbidden", "You are not allowed to create an expense for this group")
+		response.Error(w, http.StatusForbidden, "expense_forbidden", "You are not allowed to access this expense or group")
+	case errors.Is(err, expenses.ErrNotFound):
+		response.Error(w, http.StatusNotFound, "expense_not_found", "Expense was not found")
 	case errors.Is(err, expenses.ErrPayerNotMember):
 		response.Error(w, http.StatusBadRequest, "payer_not_group_member", "Payer must be a group member")
 	case errors.Is(err, expenses.ErrParticipantNotMember):

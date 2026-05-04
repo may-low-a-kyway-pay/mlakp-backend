@@ -156,6 +156,7 @@ mlakp-backend/
 │   ├── expenses/
 │   ├── debts/
 │   ├── payments/
+│   ├── dashboard/
 │   └── postgres/
 │       ├── db.go
 │       └── sqlc/
@@ -175,7 +176,8 @@ mlakp-backend/
 │   ├── auth_sessions.sql
 │   ├── groups.sql
 │   ├── expenses.sql
-│   └── payments.sql
+│   ├── payments.sql
+│   └── dashboard.sql
 ├── scripts/
 │   └── openapi/
 ├── sqlc.yaml
@@ -195,12 +197,6 @@ Rules:
 - Edit OpenAPI source in `api/openapi/`.
 - Regenerate the served OpenAPI artifact with `make openapi`.
 - Keep `api/openapi.yaml` generated and served through `api/docs.go`.
-
-Planned domain packages still to add:
-- `internal/dashboard`
-
-Planned query files still to add:
-- `queries/dashboard.sql`
 
 Planned deployment files still to add:
 - `deploy/Dockerfile`
@@ -240,15 +236,11 @@ Implemented:
 - Debt acceptance and rejection by the debtor.
 - Owner review and resend of rejected debts, with optional amount adjustment.
 - Payment marking by debtor and payment review by creditor.
+- Expense detail lookup and group expense listing.
+- Current-user debt listing.
+- Dashboard totals for accepted and partially settled debts.
 
 Not implemented yet:
-- Expense read/list endpoints:
-  - `GET /v1/expenses/{expenseID}`
-  - `GET /v1/groups/{groupID}/expenses`
-- Debt list endpoint:
-  - `GET /v1/debts`
-- Dashboard totals:
-  - `GET /v1/dashboard`
 - Docker and CI.
 
 ---
@@ -457,13 +449,17 @@ GET    /v1/groups/{groupID}
 POST   /v1/groups/{groupID}/members
 
 POST   /v1/expenses
+GET    /v1/expenses/{expenseID}
+GET    /v1/groups/{groupID}/expenses
 
+GET    /v1/debts
 POST   /v1/debts/{debtID}
 POST   /v1/debts/{debtID}/review
 
 POST   /v1/debts/{debtID}/payments
 POST   /v1/payments/{paymentID}
 
+GET    /v1/dashboard
 GET    /healthz
 GET    /readyz
 ```
@@ -472,19 +468,10 @@ Rules:
 - All non-auth routes require authentication.
 - `POST /v1/auth/logout` requires authentication because it revokes the current session.
 - `POST /v1/auth/refresh` uses the refresh token, not an access-token bearer check.
-- All group/expense/debt/payment routes require authorization checks.
+- All group/expense/debt/payment/dashboard routes require authorization checks.
 - Path IDs must be validated.
 - Use consistent JSON response envelopes.
 - Return stable machine-readable error codes.
-
-Planned routes that are not registered yet:
-
-```text
-GET    /v1/expenses/{expenseID}
-GET    /v1/groups/{groupID}/expenses
-GET    /v1/debts
-GET    /v1/dashboard
-```
 
 ---
 
@@ -961,8 +948,8 @@ Recommended order:
 13. Add expenses and split logic. Done.
 14. Add debt acceptance/rejection. Done.
 15. Add payments and review logic. Done.
-16. Add expense/debt read endpoints and dashboard. Next.
-17. Add Docker and CI.
+16. Add expense/debt read endpoints and dashboard. Done.
+17. Add Docker and CI. Next.
 
 ---
 
