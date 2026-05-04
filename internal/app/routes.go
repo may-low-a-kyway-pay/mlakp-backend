@@ -20,6 +20,7 @@ type RouterDeps struct {
 	GroupHandler     *handlers.GroupHandler
 	ExpenseHandler   *handlers.ExpenseHandler
 	DebtHandler      *handlers.DebtHandler
+	PaymentHandler   *handlers.PaymentHandler
 	TokenManager     *auth.TokenManager
 	SessionService   *sessions.Service
 	ReadinessChecker interface {
@@ -64,6 +65,11 @@ func NewRouter(logger *slog.Logger, deps RouterDeps) http.Handler {
 		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
 		mux.Handle("POST /v1/debts/{debtID}", authenticated(http.HandlerFunc(deps.DebtHandler.Update)))
 		mux.Handle("POST /v1/debts/{debtID}/review", authenticated(http.HandlerFunc(deps.DebtHandler.ReviewRejected)))
+	}
+	if deps.PaymentHandler != nil && deps.TokenManager != nil {
+		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
+		mux.Handle("POST /v1/debts/{debtID}/payments", authenticated(http.HandlerFunc(deps.PaymentHandler.Mark)))
+		mux.Handle("POST /v1/payments/{paymentID}", authenticated(http.HandlerFunc(deps.PaymentHandler.Update)))
 	}
 
 	return recoverPanic(logger)(requestLogger(logger)(secureHeaders(mux)))
