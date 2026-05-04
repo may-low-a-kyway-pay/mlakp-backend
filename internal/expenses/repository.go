@@ -3,6 +3,7 @@ package expenses
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
@@ -123,6 +124,68 @@ func (r *Repository) Create(ctx context.Context, params createParams) (CreatedEx
 	}, nil
 }
 
+func (r *Repository) Get(ctx context.Context, expenseID, userID string) (ExpenseDetails, error) {
+	expenseUUID, err := parseUUID(expenseID)
+	if err != nil {
+		return ExpenseDetails{}, ErrInvalidExpenseID
+	}
+	userUUID, err := parseUUID(userID)
+	if err != nil {
+		return ExpenseDetails{}, ErrForbidden
+	}
+
+	expense, err := r.queries.GetExpenseForUser(ctx, sqlc.GetExpenseForUserParams{
+		ID:     expenseUUID,
+		UserID: userUUID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ExpenseDetails{}, ErrNotFound
+		}
+		return ExpenseDetails{}, err
+	}
+
+	participants, err := r.queries.ListExpenseParticipants(ctx, expenseUUID)
+	if err != nil {
+		return ExpenseDetails{}, err
+	}
+	debts, err := r.queries.ListDebtsByExpense(ctx, expenseUUID)
+	if err != nil {
+		return ExpenseDetails{}, err
+	}
+
+	return ExpenseDetails{
+		Expense:      expenseFromSQLC(expense),
+		Participants: participantsFromSQLC(participants),
+		Debts:        debtsFromSQLC(debts),
+	}, nil
+}
+
+func (r *Repository) ListByGroup(ctx context.Context, groupID, userID string) ([]Expense, error) {
+	groupUUID, err := parseUUID(groupID)
+	if err != nil {
+		return nil, ErrInvalidGroupID
+	}
+	userUUID, err := parseUUID(userID)
+	if err != nil {
+		return nil, ErrForbidden
+	}
+
+	if err := requireGroupMember(ctx, r.queries, groupUUID, userUUID, ErrForbidden); err != nil {
+		return nil, err
+	}
+
+	expenses, err := r.queries.ListGroupExpensesForUser(ctx, sqlc.ListGroupExpensesForUserParams{
+		GroupID: groupUUID,
+		UserID:  userUUID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return expensesFromSQLC(expenses), nil
+}
+
 func requireGroupMember(ctx context.Context, queries *sqlc.Queries, groupID, userID pgtype.UUID, errIfMissing error) error {
 	isMember, err := queries.IsGroupMember(ctx, sqlc.IsGroupMemberParams{
 		GroupID: groupID,
@@ -166,6 +229,14 @@ func participantFromSQLC(participant sqlc.ExpenseParticipant) Participant {
 	}
 }
 
+func participantsFromSQLC(participants []sqlc.ExpenseParticipant) []Participant {
+	result := make([]Participant, 0, len(participants))
+	for _, participant := range participants {
+		result = append(result, participantFromSQLC(participant))
+	}
+	return result
+}
+
 func debtFromSQLC(debt sqlc.Debt) Debt {
 	return Debt{
 		ID:                   formatUUID(debt.ID),
@@ -181,6 +252,22 @@ func debtFromSQLC(debt sqlc.Debt) Debt {
 		CreatedAt:            debt.CreatedAt.Time,
 		UpdatedAt:            debt.UpdatedAt.Time,
 	}
+}
+
+func debtsFromSQLC(debts []sqlc.Debt) []Debt {
+	result := make([]Debt, 0, len(debts))
+	for _, debt := range debts {
+		result = append(result, debtFromSQLC(debt))
+	}
+	return result
+}
+
+func expensesFromSQLC(expenses []sqlc.Expense) []Expense {
+	result := make([]Expense, 0, len(expenses))
+	for _, expense := range expenses {
+		result = append(result, expenseFromSQLC(expense))
+	}
+	return result
 }
 
 func parseUUID(value string) (pgtype.UUID, error) {

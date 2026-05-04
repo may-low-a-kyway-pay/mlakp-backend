@@ -97,6 +97,31 @@ func TestServiceReviewRejectedTrimsAndParsesInput(t *testing.T) {
 	}
 }
 
+func TestServiceListValidatesAndTrimsInput(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   ListInput
+		wantErr error
+	}{
+		{name: "missing user", input: ListInput{UserID: " "}, wantErr: ErrInvalidUserID},
+		{name: "valid", input: ListInput{UserID: " user-1 "}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &fakeStore{}
+			service := NewService(store)
+			_, err := service.List(context.Background(), tt.input)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("List() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr == nil && store.userID != "user-1" {
+				t.Fatalf("userID = %q, want user-1", store.userID)
+			}
+		})
+	}
+}
+
 type fakeStore struct {
 	debtID       string
 	userID       string
@@ -118,6 +143,11 @@ func (s *fakeStore) Reject(_ context.Context, debtID, debtorID string) (Debt, er
 func (s *fakeStore) ReviewRejected(_ context.Context, params ReviewRejectedParams) (Debt, error) {
 	s.reviewParams = params
 	return Debt{}, nil
+}
+
+func (s *fakeStore) ListForUser(_ context.Context, userID string) ([]Debt, error) {
+	s.userID = userID
+	return nil, nil
 }
 
 func stringPtr(value string) *string {

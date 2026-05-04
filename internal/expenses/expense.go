@@ -23,6 +23,16 @@ type CreateInput struct {
 	CreatedBy    string
 }
 
+type GetInput struct {
+	ExpenseID string
+	UserID    string
+}
+
+type ListByGroupInput struct {
+	GroupID string
+	UserID  string
+}
+
 type ParticipantInput struct {
 	UserID      string
 	ShareAmount *string
@@ -48,6 +58,12 @@ type participantShare struct {
 }
 
 type CreatedExpense struct {
+	Expense      Expense
+	Participants []Participant
+	Debts        []Debt
+}
+
+type ExpenseDetails struct {
 	Expense      Expense
 	Participants []Participant
 	Debts        []Debt

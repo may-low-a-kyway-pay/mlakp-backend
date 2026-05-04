@@ -38,10 +38,52 @@ INSERT INTO debts (
 VALUES ($1, $2, $3, $4, $4)
 RETURNING id, expense_id, debtor_id, creditor_id, original_amount_minor, remaining_amount_minor, status, accepted_at, rejected_at, settled_at, created_at, updated_at;
 
+-- name: GetExpenseForUser :one
+SELECT e.id, e.group_id, e.title, e.description, e.total_amount_minor, e.currency, e.paid_by, e.split_type, e.receipt_url, e.expense_date, e.created_by, e.created_at, e.updated_at
+FROM expenses e
+WHERE e.id = $1
+  AND EXISTS (
+      SELECT 1
+      FROM group_members gm
+      WHERE gm.group_id = e.group_id
+        AND gm.user_id = $2
+  );
+
+-- name: ListExpenseParticipants :many
+SELECT id, expense_id, user_id, share_amount_minor, created_at
+FROM expense_participants
+WHERE expense_id = $1
+ORDER BY created_at ASC, id ASC;
+
+-- name: ListDebtsByExpense :many
+SELECT id, expense_id, debtor_id, creditor_id, original_amount_minor, remaining_amount_minor, status, accepted_at, rejected_at, settled_at, created_at, updated_at
+FROM debts
+WHERE expense_id = $1
+ORDER BY created_at ASC, id ASC;
+
+-- name: ListGroupExpensesForUser :many
+SELECT e.id, e.group_id, e.title, e.description, e.total_amount_minor, e.currency, e.paid_by, e.split_type, e.receipt_url, e.expense_date, e.created_by, e.created_at, e.updated_at
+FROM expenses e
+WHERE e.group_id = $1
+  AND EXISTS (
+      SELECT 1
+      FROM group_members gm
+      WHERE gm.group_id = e.group_id
+        AND gm.user_id = $2
+  )
+ORDER BY e.expense_date DESC NULLS LAST, e.created_at DESC, e.id DESC;
+
 -- name: GetDebtByID :one
 SELECT id, expense_id, debtor_id, creditor_id, original_amount_minor, remaining_amount_minor, status, accepted_at, rejected_at, settled_at, created_at, updated_at
 FROM debts
 WHERE id = $1;
+
+-- name: ListDebtsForUser :many
+SELECT id, expense_id, debtor_id, creditor_id, original_amount_minor, remaining_amount_minor, status, accepted_at, rejected_at, settled_at, created_at, updated_at
+FROM debts
+WHERE debtor_id = $1
+   OR creditor_id = $1
+ORDER BY updated_at DESC, created_at DESC, id DESC;
 
 -- name: AcceptDebt :one
 UPDATE debts

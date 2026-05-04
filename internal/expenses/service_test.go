@@ -116,13 +116,80 @@ func TestServiceCreateRejectsInvalidInput(t *testing.T) {
 	}
 }
 
+func TestServiceGetValidatesAndTrimsInput(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   GetInput
+		wantErr error
+	}{
+		{name: "missing expense", input: GetInput{ExpenseID: " ", UserID: "user-1"}, wantErr: ErrInvalidExpenseID},
+		{name: "missing user", input: GetInput{ExpenseID: "expense-1", UserID: " "}, wantErr: ErrForbidden},
+		{name: "valid", input: GetInput{ExpenseID: " expense-1 ", UserID: " user-1 "}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &fakeStore{}
+			service := NewService(store)
+			_, err := service.Get(context.Background(), tt.input)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("Get() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr == nil && (store.expenseID != "expense-1" || store.userID != "user-1") {
+				t.Fatalf("store IDs = (%q, %q), want (expense-1, user-1)", store.expenseID, store.userID)
+			}
+		})
+	}
+}
+
+func TestServiceListByGroupValidatesAndTrimsInput(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   ListByGroupInput
+		wantErr error
+	}{
+		{name: "missing group", input: ListByGroupInput{GroupID: " ", UserID: "user-1"}, wantErr: ErrInvalidGroupID},
+		{name: "missing user", input: ListByGroupInput{GroupID: "group-1", UserID: " "}, wantErr: ErrForbidden},
+		{name: "valid", input: ListByGroupInput{GroupID: " group-1 ", UserID: " user-1 "}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &fakeStore{}
+			service := NewService(store)
+			_, err := service.ListByGroup(context.Background(), tt.input)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("ListByGroup() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr == nil && (store.groupID != "group-1" || store.userID != "user-1") {
+				t.Fatalf("store IDs = (%q, %q), want (group-1, user-1)", store.groupID, store.userID)
+			}
+		})
+	}
+}
+
 type fakeStore struct {
-	params createParams
+	params    createParams
+	expenseID string
+	groupID   string
+	userID    string
 }
 
 func (s *fakeStore) Create(_ context.Context, params createParams) (CreatedExpense, error) {
 	s.params = params
 	return CreatedExpense{}, nil
+}
+
+func (s *fakeStore) Get(_ context.Context, expenseID, userID string) (ExpenseDetails, error) {
+	s.expenseID = expenseID
+	s.userID = userID
+	return ExpenseDetails{}, nil
+}
+
+func (s *fakeStore) ListByGroup(_ context.Context, groupID, userID string) ([]Expense, error) {
+	s.groupID = groupID
+	s.userID = userID
+	return nil, nil
 }
 
 func validCreateInput(mutators ...func(*CreateInput)) CreateInput {

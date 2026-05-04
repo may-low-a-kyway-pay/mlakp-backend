@@ -12,6 +12,7 @@ import (
 
 var (
 	ErrInvalidGroupID       = errors.New("group id is invalid")
+	ErrInvalidExpenseID     = errors.New("expense id is invalid")
 	ErrInvalidTitle         = errors.New("expense title must be between 1 and 160 characters")
 	ErrInvalidAmount        = errors.New("expense amount is invalid")
 	ErrInvalidCurrency      = errors.New("currency is invalid")
@@ -25,12 +26,15 @@ var (
 	ErrInvalidReceiptURL    = errors.New("receipt url is invalid")
 	ErrInvalidExpenseDate   = errors.New("expense date is invalid")
 	ErrForbidden            = errors.New("expense action is forbidden")
+	ErrNotFound             = errors.New("expense not found")
 	ErrPayerNotMember       = errors.New("payer is not a group member")
 	ErrParticipantNotMember = errors.New("participant is not a group member")
 )
 
 type Store interface {
 	Create(ctx context.Context, params createParams) (CreatedExpense, error)
+	Get(ctx context.Context, expenseID, userID string) (ExpenseDetails, error)
+	ListByGroup(ctx context.Context, groupID, userID string) ([]Expense, error)
 }
 
 type Service struct {
@@ -48,6 +52,34 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (CreatedExpense
 	}
 
 	return s.store.Create(ctx, params)
+}
+
+func (s *Service) Get(ctx context.Context, input GetInput) (ExpenseDetails, error) {
+	expenseID := strings.TrimSpace(input.ExpenseID)
+	if expenseID == "" {
+		return ExpenseDetails{}, ErrInvalidExpenseID
+	}
+
+	userID := strings.TrimSpace(input.UserID)
+	if userID == "" {
+		return ExpenseDetails{}, ErrForbidden
+	}
+
+	return s.store.Get(ctx, expenseID, userID)
+}
+
+func (s *Service) ListByGroup(ctx context.Context, input ListByGroupInput) ([]Expense, error) {
+	groupID := strings.TrimSpace(input.GroupID)
+	if groupID == "" {
+		return nil, ErrInvalidGroupID
+	}
+
+	userID := strings.TrimSpace(input.UserID)
+	if userID == "" {
+		return nil, ErrForbidden
+	}
+
+	return s.store.ListByGroup(ctx, groupID, userID)
 }
 
 func validateCreateInput(input CreateInput) (createParams, error) {

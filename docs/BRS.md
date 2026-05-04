@@ -241,8 +241,10 @@ Debtor Pays → Mark as Paid → Creditor Confirms → Debt Updated
 - Session-backed logout
 - Group creation and member management
 - Expense creation **(equal + manual split)**
+- Expense detail and group expense listing
 - Debt tracking
 - Debt acceptance/rejection
+- Current-user debt listing
 - Payment marking **(full/partial)**
 - Payment review
 - Basic dashboard **(You Owe / You Get)**

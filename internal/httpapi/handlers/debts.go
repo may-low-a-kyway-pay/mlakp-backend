@@ -26,6 +26,29 @@ func NewDebtHandler(debts *debts.Service) *DebtHandler {
 	return &DebtHandler{debts: debts}
 }
 
+func (h *DebtHandler) List(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+		return
+	}
+
+	debtList, err := h.debts.List(r.Context(), debts.ListInput{UserID: userID})
+	if err != nil {
+		writeDebtError(w, err)
+		return
+	}
+
+	debtsResponse := make([]debtResponse, 0, len(debtList))
+	for _, debt := range debtList {
+		debtsResponse = append(debtsResponse, toDebtResponse(debt))
+	}
+
+	response.Success(w, http.StatusOK, map[string][]debtResponse{
+		"debts": debtsResponse,
+	})
+}
+
 func (h *DebtHandler) Update(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {

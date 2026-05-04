@@ -22,6 +22,7 @@ type Store interface {
 	Accept(ctx context.Context, debtID, debtorID string) (Debt, error)
 	Reject(ctx context.Context, debtID, debtorID string) (Debt, error)
 	ReviewRejected(ctx context.Context, params ReviewRejectedParams) (Debt, error)
+	ListForUser(ctx context.Context, userID string) ([]Debt, error)
 }
 
 type Service struct {
@@ -55,6 +56,15 @@ func (s *Service) ReviewRejected(ctx context.Context, input ReviewRejectedInput)
 	}
 
 	return s.store.ReviewRejected(ctx, params)
+}
+
+func (s *Service) List(ctx context.Context, input ListInput) ([]Debt, error) {
+	userID := strings.TrimSpace(input.UserID)
+	if userID == "" {
+		return nil, ErrInvalidUserID
+	}
+
+	return s.store.ListForUser(ctx, userID)
 }
 
 func validateTransitionInput(debtID, debtorID string) (string, string, error) {

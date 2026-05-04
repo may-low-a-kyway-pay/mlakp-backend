@@ -80,6 +80,25 @@ func (r *Repository) ReviewRejected(ctx context.Context, params ReviewRejectedPa
 	return debtFromSQLC(debt), nil
 }
 
+func (r *Repository) ListForUser(ctx context.Context, userID string) ([]Debt, error) {
+	userUUID, err := parseUUID(userID)
+	if err != nil {
+		return nil, ErrInvalidUserID
+	}
+
+	rows, err := r.queries.ListDebtsForUser(ctx, userUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	debts := make([]Debt, 0, len(rows))
+	for _, row := range rows {
+		debts = append(debts, debtFromSQLC(row))
+	}
+
+	return debts, nil
+}
+
 func parseTransitionUUIDs(debtID, debtorID string) (pgtype.UUID, pgtype.UUID, error) {
 	debtUUID, err := parseUUID(debtID)
 	if err != nil {

@@ -1,6 +1,6 @@
 # MLAKP Backend
 
-Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation, user registration, login, refresh, session-backed logout, the authenticated current-user endpoint, authenticated group creation, listing, details, member management, expense creation with generated pending debts, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, and payment marking/review.
+Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation, user registration, login, refresh, session-backed logout, the authenticated current-user endpoint, authenticated group creation, listing, details, member management, expense creation/detail/listing, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, current-user debt listing, payment marking/review, and dashboard totals.
 
 ## Requirements
 
@@ -316,6 +316,42 @@ curl -s -X POST http://localhost:8080/v1/groups/$GROUP_ID/members \
   -d '{"user_id":"USER_ID_TO_ADD"}'
 ```
 
+Create an expense:
+
+```sh
+curl -s -X POST http://localhost:8080/v1/expenses \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "group_id": "'"$GROUP_ID"'",
+    "title": "Dinner",
+    "total_amount": "100.00",
+    "currency": "THB",
+    "paid_by": "'"$PAYER_ID"'",
+    "split_type": "equal",
+    "participants": [
+      {"user_id": "'"$PAYER_ID"'"},
+      {"user_id": "'"$MEMBER_ID"'"}
+    ]
+  }'
+```
+
+Read expense, debt, and dashboard data:
+
+```sh
+curl -s http://localhost:8080/v1/expenses/$EXPENSE_ID \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -s http://localhost:8080/v1/groups/$GROUP_ID/expenses \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -s http://localhost:8080/v1/debts \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -s http://localhost:8080/v1/dashboard \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 Refresh the access token:
 
 ```sh
@@ -406,6 +442,7 @@ internal/money/                 Minor-unit money parsing, formatting, and splitt
 internal/expenses/              Expense creation and debt generation
 internal/debts/                 Debt state transitions and rejected-debt review
 internal/payments/              Payment marking and creditor review
+internal/dashboard/             Current-user financial summaries
 internal/postgres/              PostgreSQL pool setup
 internal/postgres/sqlc/         Generated sqlc database code
 queries/                        SQL queries consumed by sqlc

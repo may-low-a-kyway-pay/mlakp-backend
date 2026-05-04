@@ -1,0 +1,46 @@
+    DashboardAmount:
+      type: object
+      additionalProperties: false
+      required:
+        - amount
+        - amount_minor
+        - debt_count
+      properties:
+        amount:
+          type: string
+        amount_minor:
+          type: integer
+          format: int64
+        debt_count:
+          type: integer
+          format: int64
+    Dashboard:
+      type: object
+      additionalProperties: false
+      required:
+        - you_owe
+        - you_get
+      properties:
+        you_owe:
+          $ref: "#/components/schemas/DashboardAmount"
+        you_get:
+          $ref: "#/components/schemas/DashboardAmount"
+    DashboardResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - dashboard
+          properties:
+            dashboard:
+              $ref: "#/components/schemas/Dashboard"

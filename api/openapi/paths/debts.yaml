@@ -1,3 +1,22 @@
+  /v1/debts:
+    get:
+      tags:
+        - Debts
+      summary: List current-user debts
+      description: Lists debts where the authenticated user is either debtor or creditor.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current-user debts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DebtsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
   /v1/debts/{debtID}:
     post:
       tags:

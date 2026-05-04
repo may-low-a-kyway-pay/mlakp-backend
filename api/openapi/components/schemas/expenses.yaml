@@ -92,6 +92,56 @@
               type: array
               items:
                 $ref: "#/components/schemas/Debt"
+    ExpenseDetailsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - expense
+            - participants
+            - debts
+          properties:
+            expense:
+              $ref: "#/components/schemas/Expense"
+            participants:
+              type: array
+              items:
+                $ref: "#/components/schemas/ExpenseParticipant"
+            debts:
+              type: array
+              items:
+                $ref: "#/components/schemas/Debt"
+    ListExpensesResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - expenses
+          properties:
+            expenses:
+              type: array
+              items:
+                $ref: "#/components/schemas/Expense"
     Expense:
       type: object
       additionalProperties: false
@@ -278,3 +328,24 @@
           properties:
             debt:
               $ref: "#/components/schemas/Debt"
+    DebtsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - debts
+          properties:
+            debts:
+              type: array
+              items:
+                $ref: "#/components/schemas/Debt"

@@ -32,6 +32,10 @@ type ReviewRejectedInput struct {
 	Amount     *string
 }
 
+type ListInput struct {
+	UserID string
+}
+
 type ReviewRejectedParams struct {
 	DebtID      string
 	ReviewerID  string

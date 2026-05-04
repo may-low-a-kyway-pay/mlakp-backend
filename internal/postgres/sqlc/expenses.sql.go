@@ -234,6 +234,44 @@ func (q *Queries) GetDebtReviewContext(ctx context.Context, arg GetDebtReviewCon
 	return i, err
 }
 
+const getExpenseForUser = `-- name: GetExpenseForUser :one
+SELECT e.id, e.group_id, e.title, e.description, e.total_amount_minor, e.currency, e.paid_by, e.split_type, e.receipt_url, e.expense_date, e.created_by, e.created_at, e.updated_at
+FROM expenses e
+WHERE e.id = $1
+  AND EXISTS (
+      SELECT 1
+      FROM group_members gm
+      WHERE gm.group_id = e.group_id
+        AND gm.user_id = $2
+  )
+`
+
+type GetExpenseForUserParams struct {
+	ID     pgtype.UUID
+	UserID pgtype.UUID
+}
+
+func (q *Queries) GetExpenseForUser(ctx context.Context, arg GetExpenseForUserParams) (Expense, error) {
+	row := q.db.QueryRow(ctx, getExpenseForUser, arg.ID, arg.UserID)
+	var i Expense
+	err := row.Scan(
+		&i.ID,
+		&i.GroupID,
+		&i.Title,
+		&i.Description,
+		&i.TotalAmountMinor,
+		&i.Currency,
+		&i.PaidBy,
+		&i.SplitType,
+		&i.ReceiptUrl,
+		&i.ExpenseDate,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const isGroupMember = `-- name: IsGroupMember :one
 SELECT EXISTS (
     SELECT 1
@@ -253,6 +291,172 @@ func (q *Queries) IsGroupMember(ctx context.Context, arg IsGroupMemberParams) (b
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const listDebtsByExpense = `-- name: ListDebtsByExpense :many
+SELECT id, expense_id, debtor_id, creditor_id, original_amount_minor, remaining_amount_minor, status, accepted_at, rejected_at, settled_at, created_at, updated_at
+FROM debts
+WHERE expense_id = $1
+ORDER BY created_at ASC, id ASC
+`
+
+func (q *Queries) ListDebtsByExpense(ctx context.Context, expenseID pgtype.UUID) ([]Debt, error) {
+	rows, err := q.db.Query(ctx, listDebtsByExpense, expenseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Debt
+	for rows.Next() {
+		var i Debt
+		if err := rows.Scan(
+			&i.ID,
+			&i.ExpenseID,
+			&i.DebtorID,
+			&i.CreditorID,
+			&i.OriginalAmountMinor,
+			&i.RemainingAmountMinor,
+			&i.Status,
+			&i.AcceptedAt,
+			&i.RejectedAt,
+			&i.SettledAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDebtsForUser = `-- name: ListDebtsForUser :many
+SELECT id, expense_id, debtor_id, creditor_id, original_amount_minor, remaining_amount_minor, status, accepted_at, rejected_at, settled_at, created_at, updated_at
+FROM debts
+WHERE debtor_id = $1
+   OR creditor_id = $1
+ORDER BY updated_at DESC, created_at DESC, id DESC
+`
+
+func (q *Queries) ListDebtsForUser(ctx context.Context, debtorID pgtype.UUID) ([]Debt, error) {
+	rows, err := q.db.Query(ctx, listDebtsForUser, debtorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Debt
+	for rows.Next() {
+		var i Debt
+		if err := rows.Scan(
+			&i.ID,
+			&i.ExpenseID,
+			&i.DebtorID,
+			&i.CreditorID,
+			&i.OriginalAmountMinor,
+			&i.RemainingAmountMinor,
+			&i.Status,
+			&i.AcceptedAt,
+			&i.RejectedAt,
+			&i.SettledAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listExpenseParticipants = `-- name: ListExpenseParticipants :many
+SELECT id, expense_id, user_id, share_amount_minor, created_at
+FROM expense_participants
+WHERE expense_id = $1
+ORDER BY created_at ASC, id ASC
+`
+
+func (q *Queries) ListExpenseParticipants(ctx context.Context, expenseID pgtype.UUID) ([]ExpenseParticipant, error) {
+	rows, err := q.db.Query(ctx, listExpenseParticipants, expenseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExpenseParticipant
+	for rows.Next() {
+		var i ExpenseParticipant
+		if err := rows.Scan(
+			&i.ID,
+			&i.ExpenseID,
+			&i.UserID,
+			&i.ShareAmountMinor,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listGroupExpensesForUser = `-- name: ListGroupExpensesForUser :many
+SELECT e.id, e.group_id, e.title, e.description, e.total_amount_minor, e.currency, e.paid_by, e.split_type, e.receipt_url, e.expense_date, e.created_by, e.created_at, e.updated_at
+FROM expenses e
+WHERE e.group_id = $1
+  AND EXISTS (
+      SELECT 1
+      FROM group_members gm
+      WHERE gm.group_id = e.group_id
+        AND gm.user_id = $2
+  )
+ORDER BY e.expense_date DESC NULLS LAST, e.created_at DESC, e.id DESC
+`
+
+type ListGroupExpensesForUserParams struct {
+	GroupID pgtype.UUID
+	UserID  pgtype.UUID
+}
+
+func (q *Queries) ListGroupExpensesForUser(ctx context.Context, arg ListGroupExpensesForUserParams) ([]Expense, error) {
+	rows, err := q.db.Query(ctx, listGroupExpensesForUser, arg.GroupID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Expense
+	for rows.Next() {
+		var i Expense
+		if err := rows.Scan(
+			&i.ID,
+			&i.GroupID,
+			&i.Title,
+			&i.Description,
+			&i.TotalAmountMinor,
+			&i.Currency,
+			&i.PaidBy,
+			&i.SplitType,
+			&i.ReceiptUrl,
+			&i.ExpenseDate,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const rejectDebt = `-- name: RejectDebt :one
