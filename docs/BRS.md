@@ -133,7 +133,7 @@ Status: Pending Confirmation
 
 ---
 
-### 3.6 Payment Confirmation
+### 3.6 Payment Review
 
 Creditor can:
 
@@ -244,7 +244,7 @@ Debtor Pays → Mark as Paid → Creditor Confirms → Debt Updated
 - Debt tracking
 - Debt acceptance/rejection
 - Payment marking **(full/partial)**
-- Payment confirmation
+- Payment review
 - Basic dashboard **(You Owe / You Get)**
 
 ---

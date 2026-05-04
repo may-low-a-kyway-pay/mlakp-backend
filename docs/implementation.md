@@ -155,6 +155,7 @@ mlakp-backend/
 │   ├── money/
 │   ├── expenses/
 │   ├── debts/
+│   ├── payments/
 │   └── postgres/
 │       ├── db.go
 │       └── sqlc/
@@ -166,12 +167,15 @@ mlakp-backend/
 │   ├── 000003_groups.up.sql
 │   ├── 000003_groups.down.sql
 │   ├── 000004_expenses.up.sql
-│   └── 000004_expenses.down.sql
+│   ├── 000004_expenses.down.sql
+│   ├── 000005_payments.up.sql
+│   └── 000005_payments.down.sql
 ├── queries/
 │   ├── users.sql
 │   ├── auth_sessions.sql
 │   ├── groups.sql
-│   └── expenses.sql
+│   ├── expenses.sql
+│   └── payments.sql
 ├── scripts/
 │   └── openapi/
 ├── sqlc.yaml
@@ -193,11 +197,9 @@ Rules:
 - Keep `api/openapi.yaml` generated and served through `api/docs.go`.
 
 Planned domain packages still to add:
-- `internal/payments`
 - `internal/dashboard`
 
 Planned query files still to add:
-- `queries/payments.sql`
 - `queries/dashboard.sql`
 
 Planned deployment files still to add:
@@ -237,10 +239,16 @@ Implemented:
 - Expense creation with participant rows and generated pending debts.
 - Debt acceptance and rejection by the debtor.
 - Owner review and resend of rejected debts, with optional amount adjustment.
+- Payment marking by debtor and payment review by creditor.
 
 Not implemented yet:
-- Payment marking and confirmation.
-- Dashboard totals.
+- Expense read/list endpoints:
+  - `GET /v1/expenses/{expenseID}`
+  - `GET /v1/groups/{groupID}/expenses`
+- Debt list endpoint:
+  - `GET /v1/debts`
+- Dashboard totals:
+  - `GET /v1/dashboard`
 - Docker and CI.
 
 ---
@@ -429,11 +437,14 @@ Disallowed:
 
 ---
 
-## 10. API Routes
+## 10. Implemented API Routes
 
-Use versioned API routes:
+The current code registers these routes in `internal/app/routes.go`:
 
 ```text
+GET    /docs
+GET    /docs/openapi.yaml
+
 POST   /v1/auth/register
 POST   /v1/auth/login
 POST   /v1/auth/logout
@@ -446,18 +457,13 @@ GET    /v1/groups/{groupID}
 POST   /v1/groups/{groupID}/members
 
 POST   /v1/expenses
-GET    /v1/expenses/{expenseID}
-GET    /v1/groups/{groupID}/expenses
 
 POST   /v1/debts/{debtID}
 POST   /v1/debts/{debtID}/review
-GET    /v1/debts
 
 POST   /v1/debts/{debtID}/payments
-POST   /v1/payments/{paymentID}/confirm
-POST   /v1/payments/{paymentID}/reject
+POST   /v1/payments/{paymentID}
 
-GET    /v1/dashboard
 GET    /healthz
 GET    /readyz
 ```
@@ -470,6 +476,15 @@ Rules:
 - Path IDs must be validated.
 - Use consistent JSON response envelopes.
 - Return stable machine-readable error codes.
+
+Planned routes that are not registered yet:
+
+```text
+GET    /v1/expenses/{expenseID}
+GET    /v1/groups/{groupID}/expenses
+GET    /v1/debts
+GET    /v1/dashboard
+```
 
 ---
 
@@ -667,26 +682,23 @@ Rules:
 - Amount must not exceed available `remaining_amount_minor` after considering pending payments.
 - Create payment with `pending_confirmation`.
 
-### Confirm Payment
+### Review Payment
 
 Rules:
 - Only creditor.
 - Payment must be `pending_confirmation`.
-- Lock payment and debt rows in one transaction.
-- Debt must be `accepted` or `partially_settled`.
-- Payment amount must be `<= remaining_amount_minor`.
-- Reduce `remaining_amount_minor`.
-- If remaining is `0`, set debt status to `settled` and set `settled_at`.
-- Otherwise set debt status to `partially_settled`.
-- Set payment status to `confirmed` and set `confirmed_at`.
-
-### Reject Payment
-
-Rules:
-- Only creditor.
-- Payment must be `pending_confirmation`.
-- Do not change debt amount.
-- Set payment status to `rejected` and set `rejected_at`.
+- Request body uses `"type": "confirm"` or `"type": "reject"`.
+- For `"confirm"`:
+  - Lock payment and debt rows in one transaction.
+  - Debt must be `accepted` or `partially_settled`.
+  - Payment amount must be `<= remaining_amount_minor`.
+  - Reduce `remaining_amount_minor`.
+  - If remaining is `0`, set debt status to `settled` and set `settled_at`.
+  - Otherwise set debt status to `partially_settled`.
+  - Set payment status to `confirmed` and set `confirmed_at`.
+- For `"reject"`:
+  - Do not change debt amount.
+  - Set payment status to `rejected` and set `rejected_at`.
 
 ---
 
@@ -948,8 +960,8 @@ Recommended order:
 12. Add money package. Done.
 13. Add expenses and split logic. Done.
 14. Add debt acceptance/rejection. Done.
-15. Add payments and confirmation logic. Next.
-16. Add dashboard.
+15. Add payments and review logic. Done.
+16. Add expense/debt read endpoints and dashboard. Next.
 17. Add Docker and CI.
 
 ---

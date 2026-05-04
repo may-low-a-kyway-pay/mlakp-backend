@@ -14,6 +14,7 @@ var pathFiles = []string{
 	"groups.yaml",
 	"expenses.yaml",
 	"debts.yaml",
+	"payments.yaml",
 }
 
 var componentFiles = []string{
@@ -24,6 +25,7 @@ var componentFiles = []string{
 	"schemas/users.yaml",
 	"schemas/groups.yaml",
 	"schemas/expenses.yaml",
+	"schemas/payments.yaml",
 }
 
 func main() {

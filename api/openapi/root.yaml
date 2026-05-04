@@ -19,3 +19,5 @@ tags:
     description: Expense creation and debt generation.
   - name: Debts
     description: Debt state transitions.
+  - name: Payments
+    description: Payment marking and creditor review.

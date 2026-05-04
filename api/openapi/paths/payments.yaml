@@ -1,0 +1,133 @@
+  /v1/debts/{debtID}/payments:
+    post:
+      tags:
+        - Payments
+      summary: Mark a debt payment
+      description: Allows the authenticated debtor to mark a full or partial payment against an accepted or partially settled debt.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: debtID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkPaymentRequest"
+            examples:
+              partial_payment:
+                value:
+                  amount: "25.00"
+                  note: Bank transfer
+      responses:
+        "201":
+          description: Payment marked and waiting for creditor review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        "400":
+          description: Invalid debt ID, JSON, or amount.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Current user is not the debtor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Debt not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Debt cannot accept payment or amount exceeds remaining balance.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid_debt_state:
+                  value:
+                    success: false
+                    error:
+                      code: invalid_debt_state
+                      message: Debt cannot accept payments in its current state
+                payment_amount_exceeds_remaining:
+                  value:
+                    success: false
+                    error:
+                      code: payment_amount_exceeds_remaining
+                      message: Payment amount exceeds remaining debt amount
+  /v1/payments/{paymentID}:
+    post:
+      tags:
+        - Payments
+      summary: Review a payment
+      description: Allows the authenticated creditor to confirm or reject a pending payment.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: paymentID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewPaymentRequest"
+            examples:
+              confirm:
+                value:
+                  type: confirm
+              reject:
+                value:
+                  type: reject
+      responses:
+        "200":
+          description: Payment reviewed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        "400":
+          description: Invalid payment ID, JSON, or review type.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Current user is not the creditor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Payment not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Payment or debt is not in a reviewable state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"

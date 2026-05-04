@@ -20,6 +20,8 @@ tags:
     description: Expense creation and debt generation.
   - name: Debts
     description: Debt state transitions.
+  - name: Payments
+    description: Payment marking and creditor review.
 paths:
   /healthz:
     get:
@@ -813,6 +815,139 @@ paths:
                     error:
                       code: invalid_debt_state
                       message: Debt cannot be updated from its current state
+  /v1/debts/{debtID}/payments:
+    post:
+      tags:
+        - Payments
+      summary: Mark a debt payment
+      description: Allows the authenticated debtor to mark a full or partial payment against an accepted or partially settled debt.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: debtID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkPaymentRequest"
+            examples:
+              partial_payment:
+                value:
+                  amount: "25.00"
+                  note: Bank transfer
+      responses:
+        "201":
+          description: Payment marked and waiting for creditor review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        "400":
+          description: Invalid debt ID, JSON, or amount.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Current user is not the debtor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Debt not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Debt cannot accept payment or amount exceeds remaining balance.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid_debt_state:
+                  value:
+                    success: false
+                    error:
+                      code: invalid_debt_state
+                      message: Debt cannot accept payments in its current state
+                payment_amount_exceeds_remaining:
+                  value:
+                    success: false
+                    error:
+                      code: payment_amount_exceeds_remaining
+                      message: Payment amount exceeds remaining debt amount
+  /v1/payments/{paymentID}:
+    post:
+      tags:
+        - Payments
+      summary: Review a payment
+      description: Allows the authenticated creditor to confirm or reject a pending payment.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: paymentID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewPaymentRequest"
+            examples:
+              confirm:
+                value:
+                  type: confirm
+              reject:
+                value:
+                  type: reject
+      responses:
+        "200":
+          description: Payment reviewed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        "400":
+          description: Invalid payment ID, JSON, or review type.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Current user is not the creditor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Payment not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Payment or debt is not in a reviewable state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   securitySchemes:
     bearerAuth:
@@ -1518,3 +1653,100 @@ components:
           properties:
             debt:
               $ref: "#/components/schemas/Debt"
+    MarkPaymentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - amount
+      properties:
+        amount:
+          type: string
+          pattern: '^[0-9]+(\.[0-9]{1,2})?$'
+          example: "25.00"
+        note:
+          type: string
+          nullable: true
+    ReviewPaymentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - confirm
+            - reject
+    Payment:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - debt_id
+        - paid_by
+        - received_by
+        - amount
+        - amount_minor
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        debt_id:
+          type: string
+          format: uuid
+        paid_by:
+          type: string
+          format: uuid
+        received_by:
+          type: string
+          format: uuid
+        amount:
+          type: string
+        amount_minor:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - pending_confirmation
+            - confirmed
+            - rejected
+        note:
+          type: string
+          nullable: true
+        confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
+        rejected_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    PaymentResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - payment
+          properties:
+            payment:
+              $ref: "#/components/schemas/Payment"

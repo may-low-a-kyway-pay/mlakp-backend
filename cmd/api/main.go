@@ -18,6 +18,7 @@ import (
 	"mlakp-backend/internal/expenses"
 	"mlakp-backend/internal/groups"
 	"mlakp-backend/internal/httpapi/handlers"
+	"mlakp-backend/internal/payments"
 	"mlakp-backend/internal/postgres"
 	"mlakp-backend/internal/postgres/sqlc"
 	"mlakp-backend/internal/sessions"
@@ -58,6 +59,8 @@ func main() {
 	expenseService := expenses.NewService(expenseRepository)
 	debtRepository := debts.NewRepository(queries)
 	debtService := debts.NewService(debtRepository)
+	paymentRepository := payments.NewRepository(dbPool, queries)
+	paymentService := payments.NewService(paymentRepository)
 
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%s", cfg.AppPort),
@@ -67,6 +70,7 @@ func main() {
 			GroupHandler:     handlers.NewGroupHandler(groupService),
 			ExpenseHandler:   handlers.NewExpenseHandler(expenseService),
 			DebtHandler:      handlers.NewDebtHandler(debtService),
+			PaymentHandler:   handlers.NewPaymentHandler(paymentService),
 			TokenManager:     tokenManager,
 			SessionService:   sessionService,
 			ReadinessChecker: dbPool,
