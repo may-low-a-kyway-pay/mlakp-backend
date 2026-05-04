@@ -150,6 +150,8 @@ paths:
                 error:
                   code: email_already_registered
                   message: Email is already registered
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "500":
           $ref: "#/components/responses/InternalError"
   /v1/auth/login:
@@ -215,6 +217,8 @@ paths:
                 error:
                   code: invalid_credentials
                   message: Email or password is incorrect
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "500":
           $ref: "#/components/responses/InternalError"
   /v1/auth/logout:
@@ -299,6 +303,8 @@ paths:
                 error:
                   code: invalid_refresh_token
                   message: Refresh token is invalid or expired
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "500":
           $ref: "#/components/responses/InternalError"
   /v1/users/me:
@@ -1073,6 +1079,17 @@ components:
       scheme: bearer
       bearerFormat: HMAC-SHA256
   responses:
+    TooManyRequests:
+      description: Request rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: rate_limited
+              message: Too many requests. Please retry later
     InternalError:
       description: Unexpected server error.
       content:

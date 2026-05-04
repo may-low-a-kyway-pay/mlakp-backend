@@ -54,6 +54,7 @@ Group rules:
 
 Session rules:
 - Registration and login create an authenticated session.
+- Public authentication endpoints are rate-limited to reduce brute-force and abuse risk.
 - Protected actions require an active authenticated session.
 - Logout invalidates the current session.
 - After logout, the same session must no longer allow access to protected data.
@@ -214,6 +215,7 @@ Future versions may support cancellation or correction flows, but they must pres
 - Payer may be included in participants but does not create self-debt
 - Payment and debt history must remain available for audit purposes
 - Users must have an active authenticated session to access protected functionality
+- Public authentication endpoints must return a rate-limit error when the client exceeds the allowed request window
 - Logout must revoke the user's current session
 - Users must not be able to view or mutate groups, expenses, debts, or payments they are not authorized to access
 

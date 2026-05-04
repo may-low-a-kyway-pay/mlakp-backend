@@ -1,4 +1,15 @@
   responses:
+    TooManyRequests:
+      description: Request rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: rate_limited
+              message: Too many requests. Please retry later
     InternalError:
       description: Unexpected server error.
       content:

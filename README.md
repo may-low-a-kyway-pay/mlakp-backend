@@ -1,6 +1,6 @@
 # MLAKP Backend
 
-Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation, user registration, login, refresh, session-backed logout, the authenticated current-user endpoint, authenticated group creation, listing, details, member management, expense creation/detail/listing, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, current-user debt listing, payment marking/review, and dashboard totals.
+Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation in local/test mode, rate-limited user registration/login/refresh, session-backed logout, the authenticated current-user endpoint, authenticated group creation, listing, details, member management, expense creation/detail/listing, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, current-user debt listing, payment marking/review, and dashboard totals.
 
 ## Requirements
 
@@ -221,17 +221,19 @@ Expected response when PostgreSQL is reachable:
 {"success":true,"data":{"status":"ready"}}
 ```
 
-Open Swagger UI:
+Open Swagger UI when `APP_ENV=local` or `APP_ENV=test`:
 
 ```text
 http://localhost:8080/docs
 ```
 
-Open the raw OpenAPI spec:
+Open the raw OpenAPI spec when `APP_ENV=local` or `APP_ENV=test`:
 
 ```text
 http://localhost:8080/docs/openapi.yaml
 ```
+
+When `APP_ENV=production`, the Swagger UI and raw OpenAPI route are not registered.
 
 ## Auth Smoke Test
 
@@ -434,7 +436,7 @@ internal/config/config.go       Environment loading and validation
 internal/auth/                  Password hashing and access token handling
 internal/sessions/              Server-side session and refresh token handling
 internal/httpapi/handlers/      HTTP request handlers
-internal/httpapi/middleware/    Authentication middleware
+internal/httpapi/middleware/    Authentication and rate limiting middleware
 internal/httpapi/response/      JSON response helpers
 internal/users/                 User domain service and repository
 internal/groups/                Group domain service and repository

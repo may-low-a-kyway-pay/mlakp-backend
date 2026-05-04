@@ -192,7 +192,15 @@ func writeUserError(w http.ResponseWriter, err error) {
 func decodeJSON(r *http.Request, destination any) error {
 	decoder := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
 	decoder.DisallowUnknownFields()
-	return decoder.Decode(destination)
+
+	if err := decoder.Decode(destination); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return err
+	}
+
+	return nil
 }
 
 func toAuthUserResponse(user users.User) authUserResponse {

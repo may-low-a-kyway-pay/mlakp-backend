@@ -77,6 +77,7 @@ func main() {
 			DashboardHandler: handlers.NewDashboardHandler(dashboardService),
 			TokenManager:     tokenManager,
 			SessionService:   sessionService,
+			AppEnv:           cfg.AppEnv,
 			ReadinessChecker: dbPool,
 		}),
 		ReadTimeout:  cfg.ReadTimeout,
