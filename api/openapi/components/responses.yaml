@@ -1,4 +1,15 @@
   responses:
+    RequestBodyTooLarge:
+      description: Request body exceeds the maximum accepted size.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: request_body_too_large
+              message: Request body must be 1 MiB or smaller
     TooManyRequests:
       description: Request rate limit exceeded.
       content:

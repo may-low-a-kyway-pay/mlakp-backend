@@ -55,6 +55,8 @@ Group rules:
 Session rules:
 - Registration and login create an authenticated session.
 - Public authentication endpoints are rate-limited to reduce brute-force and abuse risk.
+- JSON request bodies must be rejected when malformed, when they contain unknown fields, when they contain more than one JSON value, or when they exceed the allowed body size.
+- Responses that issue or revoke tokens must tell clients and intermediaries not to cache the response.
 - Protected actions require an active authenticated session.
 - Logout invalidates the current session.
 - After logout, the same session must no longer allow access to protected data.

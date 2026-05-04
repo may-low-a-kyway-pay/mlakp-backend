@@ -227,7 +227,7 @@ Do not put business rules directly in handlers.
 Implemented:
 - Configuration loading and validation.
 - PostgreSQL pool startup and readiness checks.
-- JSON structured logging, panic recovery, request logging, secure headers, auth rate limiting, and graceful shutdown.
+- JSON structured logging, panic recovery, request logging, secure headers, production HSTS/CSP headers, strict JSON decoding, auth rate limiting, and graceful shutdown.
 - Embedded Swagger UI and generated OpenAPI artifact serving in local/test mode.
 - User registration, login, refresh-token rotation, session-backed logout, and current-user lookup.
 - Group creation, group listing, group details, and owner-only member addition.
@@ -473,6 +473,7 @@ Rules:
 - Path IDs must be validated.
 - Use consistent JSON response envelopes.
 - Return stable machine-readable error codes.
+- JSON-body endpoints return `400 invalid_json` for malformed bodies and `413 request_body_too_large` for bodies larger than 1 MiB.
 
 ---
 
@@ -482,6 +483,7 @@ Authentication requirements:
 - Store only password hashes.
 - Hash passwords with bcrypt.
 - Never log passwords, token values, or password hashes.
+- Token-issuing and logout responses must set `Cache-Control: no-store` and `Pragma: no-cache`.
 - Access tokens must be short-lived.
 - Use standard library HMAC signing for access tokens.
 - Validate token signature, expiry, issuer, audience, subject, session ID, and token ID.
@@ -491,6 +493,11 @@ Authentication requirements:
 - Reject access tokens whose session is missing, expired, or revoked.
 - Auth register/login/refresh routes use in-process rate limiting. Production deployments with multiple replicas should still add an edge or shared limiter.
 - Password reset and email verification are outside MVP scope unless explicitly added.
+
+HTTP security header requirements:
+- All responses include `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: no-referrer`.
+- Production responses also include `Strict-Transport-Security` and a restrictive `Content-Security-Policy`.
+- Local/test mode does not set HSTS so local HTTP development is not affected.
 
 Access token requirements:
 - Token payload must include `sub` user ID, `sid` session ID, `jti` token ID, `iss`, `aud`, `exp`, and `iat`.
@@ -891,6 +898,7 @@ Required tests:
 - Unit tests for debt/payment state transitions.
 - Unit tests for request validation.
 - Unit tests for strict JSON body decoding.
+- Unit tests for JSON decode error-to-response mapping.
 - Unit tests for auth endpoint rate limiting.
 - Router tests for Swagger access by environment.
 - Handler tests using `httptest`.

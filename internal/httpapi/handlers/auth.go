@@ -13,6 +13,10 @@ import (
 	"mlakp-backend/internal/users"
 )
 
+const maxRequestBodyBytes int64 = 1 << 20
+
+var errRequestBodyTooLarge = errors.New("request body too large")
+
 type AuthHandler struct {
 	users        *users.Service
 	tokenManager *auth.TokenManager
@@ -55,7 +59,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
-		response.Error(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON")
+		writeDecodeError(w, err)
 		return
 	}
 
@@ -77,6 +81,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	writeAuthNoStoreHeaders(w)
 	response.Success(w, http.StatusCreated, tokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -92,7 +97,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
-		response.Error(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON")
+		writeDecodeError(w, err)
 		return
 	}
 
@@ -118,6 +123,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	writeAuthNoStoreHeaders(w)
 	response.Success(w, http.StatusOK, tokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -132,7 +138,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		RefreshToken string `json:"refresh_token"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
-		response.Error(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON")
+		writeDecodeError(w, err)
 		return
 	}
 
@@ -152,6 +158,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	writeAuthNoStoreHeaders(w)
 	response.Success(w, http.StatusOK, refreshResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -171,6 +178,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	writeAuthNoStoreHeaders(w)
 	response.Success(w, http.StatusOK, nil)
 }
 
@@ -190,17 +198,47 @@ func writeUserError(w http.ResponseWriter, err error) {
 }
 
 func decodeJSON(r *http.Request, destination any) error {
-	decoder := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
+	// Read one byte beyond the allowed size so oversized bodies become an
+	// explicit 413 instead of looking like truncated or malformed JSON.
+	reader := &io.LimitedReader{R: r.Body, N: maxRequestBodyBytes + 1}
+	decoder := json.NewDecoder(reader)
 	decoder.DisallowUnknownFields()
 
 	if err := decoder.Decode(destination); err != nil {
+		if reader.N <= 0 {
+			return errRequestBodyTooLarge
+		}
 		return err
 	}
+	// A second decode must hit EOF; otherwise the body contains multiple JSON
+	// values such as "{} {}", which the API contract does not allow.
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		if reader.N <= 0 {
+			return errRequestBodyTooLarge
+		}
 		return err
+	}
+	if reader.N <= 0 {
+		return errRequestBodyTooLarge
 	}
 
 	return nil
+}
+
+func writeDecodeError(w http.ResponseWriter, err error) {
+	// Keep malformed JSON and oversized bodies separate so clients can retry
+	// with a smaller payload instead of guessing why decoding failed.
+	if errors.Is(err, errRequestBodyTooLarge) {
+		response.Error(w, http.StatusRequestEntityTooLarge, "request_body_too_large", "Request body must be 1 MiB or smaller")
+		return
+	}
+
+	response.Error(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON")
+}
+
+func writeAuthNoStoreHeaders(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 }
 
 func toAuthUserResponse(user users.User) authUserResponse {

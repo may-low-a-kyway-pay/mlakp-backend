@@ -24,6 +24,8 @@ type rateLimitEntry struct {
 }
 
 func NewRateLimiter(maxRequests int, window time.Duration) *RateLimiter {
+	// A non-positive window would make Retry-After useless, so keep a safe
+	// default while still allowing maxRequests <= 0 for deny-all tests.
 	if window <= 0 {
 		window = time.Minute
 	}
@@ -38,6 +40,8 @@ func NewRateLimiter(maxRequests int, window time.Duration) *RateLimiter {
 
 func (l *RateLimiter) Limit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// A nil limiter intentionally behaves as disabled middleware, which
+		// keeps optional router dependencies easy to compose in tests.
 		if l == nil || l.allow(rateLimitKey(r)) {
 			next.ServeHTTP(w, r)
 			return
@@ -57,6 +61,8 @@ func (l *RateLimiter) allow(key string) bool {
 	defer l.mu.Unlock()
 
 	now := l.now()
+	// Remove expired buckets on write so the map does not grow forever in a
+	// long-running process.
 	l.cleanupExpired(now)
 
 	entry, ok := l.entries[key]
@@ -90,5 +96,7 @@ func rateLimitKey(r *http.Request) string {
 		host = parsedHost
 	}
 
+	// Use RemoteAddr directly; forwarded headers require a trusted proxy
+	// boundary and should be added deliberately at the edge.
 	return r.Method + " " + r.URL.Path + " " + host
 }

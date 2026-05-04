@@ -107,3 +107,32 @@ func TestAuthRoutesUseRateLimiter(t *testing.T) {
 		t.Fatalf("response.Code = %d, want %d", response.Code, http.StatusTooManyRequests)
 	}
 }
+
+func TestProductionSecurityHeaders(t *testing.T) {
+	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), RouterDeps{AppEnv: "production"})
+
+	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Header().Get("Strict-Transport-Security") != "max-age=31536000; includeSubDomains" {
+		t.Fatalf("Strict-Transport-Security = %q, want production HSTS", response.Header().Get("Strict-Transport-Security"))
+	}
+	if response.Header().Get("Content-Security-Policy") != "default-src 'none'; frame-ancestors 'none'; base-uri 'none'" {
+		t.Fatalf("Content-Security-Policy = %q, want production CSP", response.Header().Get("Content-Security-Policy"))
+	}
+}
+
+func TestLocalSecurityHeadersDoNotSetHSTS(t *testing.T) {
+	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), RouterDeps{AppEnv: "local"})
+
+	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Header().Get("Strict-Transport-Security") != "" {
+		t.Fatalf("Strict-Transport-Security = %q, want empty for local", response.Header().Get("Strict-Transport-Security"))
+	}
+}

@@ -74,6 +74,8 @@
                 error:
                   code: email_already_registered
                   message: Email is already registered
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "500":
@@ -141,6 +143,8 @@
                 error:
                   code: invalid_credentials
                   message: Email or password is incorrect
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "500":
@@ -227,6 +231,8 @@
                 error:
                   code: invalid_refresh_token
                   message: Refresh token is invalid or expired
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "500":

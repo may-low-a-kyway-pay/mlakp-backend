@@ -58,7 +58,7 @@ func (h *DebtHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var request updateDebtRequest
 	if err := decodeJSON(r, &request); err != nil {
-		response.Error(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON")
+		writeDecodeError(w, err)
 		return
 	}
 
@@ -82,7 +82,7 @@ func (h *DebtHandler) ReviewRejected(w http.ResponseWriter, r *http.Request) {
 
 	var request reviewRejectedDebtRequest
 	if err := decodeJSON(r, &request); err != nil {
-		response.Error(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON")
+		writeDecodeError(w, err)
 		return
 	}
 

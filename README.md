@@ -1,6 +1,6 @@
 # MLAKP Backend
 
-Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation in local/test mode, rate-limited user registration/login/refresh, session-backed logout, the authenticated current-user endpoint, authenticated group creation, listing, details, member management, expense creation/detail/listing, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, current-user debt listing, payment marking/review, and dashboard totals.
+Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation in local/test mode, rate-limited user registration/login/refresh, strict JSON request decoding, session-backed logout, the authenticated current-user endpoint, authenticated group creation, listing, details, member management, expense creation/detail/listing, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, current-user debt listing, payment marking/review, and dashboard totals.
 
 ## Requirements
 

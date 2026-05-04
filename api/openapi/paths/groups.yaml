@@ -55,6 +55,8 @@
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
         "500":
           $ref: "#/components/responses/InternalError"
     get:
@@ -214,5 +216,7 @@
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
         "500":
           $ref: "#/components/responses/InternalError"
