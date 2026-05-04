@@ -49,7 +49,8 @@ jobs:
         run: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
       - name: Run Supabase migrations
-        run: "$(go env GOPATH)/bin/migrate" -path migrations -database "$DATABASE_URL" up
+        run: |
+          "$(go env GOPATH)/bin/migrate" -path migrations -database "$DATABASE_URL" up
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
 
