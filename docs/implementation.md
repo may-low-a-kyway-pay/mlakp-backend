@@ -903,7 +903,7 @@ Required tests:
 - Router tests for Swagger access by environment.
 - Handler tests using `httptest`.
 - Repository/integration tests against PostgreSQL.
-- Transaction/concurrency tests for payment confirmation.
+- Transaction/concurrency tests for payment marking and payment confirmation.
 
 Recommended commands:
 
@@ -911,10 +911,13 @@ Recommended commands:
 make openapi
 make sqlc
 make test
+make test-integration
 make vet
 make check
 GOCACHE=/tmp/mlakp-go-build go test -race ./...
 ```
+
+PostgreSQL integration tests use `MLAKP_TEST_DATABASE_URL` first and fall back to `DATABASE_URL`. They apply migrations into a temporary schema so the target database can be reused safely across runs.
 
 CI should run OpenAPI generation checks, tests, race checks where practical, vet, lint, sqlc generation checks, and migration checks.
 

@@ -1,7 +1,7 @@
 GOCACHE ?= /tmp/mlakp-go-build
 ENV_FILE ?= .env
 
-.PHONY: run test fmt vet check sqlc openapi migrate-up migrate-down
+.PHONY: run test test-integration fmt vet check sqlc openapi migrate-up migrate-down
 
 run:
 	@if [ ! -f "$(ENV_FILE)" ]; then \
@@ -12,6 +12,14 @@ run:
 
 test:
 	GOCACHE=$(GOCACHE) go test ./...
+
+test-integration:
+	@if [ -f "$(ENV_FILE)" ]; then set -a; . ./$(ENV_FILE); set +a; fi; \
+	if [ -z "$$MLAKP_TEST_DATABASE_URL" ] && [ -z "$$DATABASE_URL" ]; then \
+		echo "Set MLAKP_TEST_DATABASE_URL or DATABASE_URL to run PostgreSQL integration tests"; \
+		exit 1; \
+	fi; \
+	GOCACHE=$(GOCACHE) go test ./internal/payments -run 'TestRepository.*Concurrent'
 
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './internal/postgres/sqlc/*')

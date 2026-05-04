@@ -395,6 +395,14 @@ Regenerate OpenAPI, format, vet, and run tests:
 make check
 ```
 
+Run PostgreSQL integration/concurrency tests:
+
+```sh
+MLAKP_TEST_DATABASE_URL='postgres://mlakp:mlakp@localhost:5432/mlakp_test?sslmode=disable' make test-integration
+```
+
+The integration tests apply migrations into a temporary schema and drop it after the run. If `MLAKP_TEST_DATABASE_URL` is not set, `make test-integration` falls back to `DATABASE_URL` from the environment or `.env`.
+
 Regenerate SQL code after changing files in `queries/` or `migrations/`:
 
 ```sh
