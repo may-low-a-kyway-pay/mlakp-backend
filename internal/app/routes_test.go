@@ -7,6 +7,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"mlakp-backend/internal/httpapi/handlers"
+	"mlakp-backend/internal/httpapi/middleware"
 )
 
 func TestHealthz(t *testing.T) {
@@ -42,7 +46,7 @@ func TestReadyz(t *testing.T) {
 }
 
 func TestDocs(t *testing.T) {
-	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), RouterDeps{})
+	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), RouterDeps{AppEnv: "local"})
 
 	request := httptest.NewRequest(http.MethodGet, "/docs", nil)
 	response := httptest.NewRecorder()
@@ -58,7 +62,7 @@ func TestDocs(t *testing.T) {
 }
 
 func TestOpenAPIYAML(t *testing.T) {
-	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), RouterDeps{})
+	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), RouterDeps{AppEnv: "test"})
 
 	request := httptest.NewRequest(http.MethodGet, "/docs/openapi.yaml", nil)
 	response := httptest.NewRecorder()
@@ -70,5 +74,65 @@ func TestOpenAPIYAML(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), "openapi: 3.0.3") {
 		t.Fatalf("response.Body does not contain OpenAPI document")
+	}
+}
+
+func TestDocsDisabledInProduction(t *testing.T) {
+	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), RouterDeps{AppEnv: "production"})
+
+	for _, path := range []string{"/docs", "/docs/openapi.yaml"} {
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		response := httptest.NewRecorder()
+
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("%s response.Code = %d, want %d", path, response.Code, http.StatusNotFound)
+		}
+	}
+}
+
+func TestAuthRoutesUseRateLimiter(t *testing.T) {
+	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), RouterDeps{
+		AuthHandler:     handlers.NewAuthHandler(nil, nil, nil),
+		AuthRateLimiter: middleware.NewRateLimiter(0, time.Minute),
+	})
+
+	request := httptest.NewRequest(http.MethodPost, "/v1/auth/login", strings.NewReader(`{"email":"thomas@example.com","password":"password123"}`))
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusTooManyRequests {
+		t.Fatalf("response.Code = %d, want %d", response.Code, http.StatusTooManyRequests)
+	}
+}
+
+func TestProductionSecurityHeaders(t *testing.T) {
+	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), RouterDeps{AppEnv: "production"})
+
+	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Header().Get("Strict-Transport-Security") != "max-age=31536000; includeSubDomains" {
+		t.Fatalf("Strict-Transport-Security = %q, want production HSTS", response.Header().Get("Strict-Transport-Security"))
+	}
+	if response.Header().Get("Content-Security-Policy") != "default-src 'none'; frame-ancestors 'none'; base-uri 'none'" {
+		t.Fatalf("Content-Security-Policy = %q, want production CSP", response.Header().Get("Content-Security-Policy"))
+	}
+}
+
+func TestLocalSecurityHeadersDoNotSetHSTS(t *testing.T) {
+	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), RouterDeps{AppEnv: "local"})
+
+	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Header().Get("Strict-Transport-Security") != "" {
+		t.Fatalf("Strict-Transport-Security = %q, want empty for local", response.Header().Get("Strict-Transport-Security"))
 	}
 }

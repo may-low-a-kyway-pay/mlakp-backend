@@ -196,7 +196,7 @@ Rules:
 - Keep SQL migrations in `migrations/`.
 - Edit OpenAPI source in `api/openapi/`.
 - Regenerate the served OpenAPI artifact with `make openapi`.
-- Keep `api/openapi.yaml` generated and served through `api/docs.go`.
+- Keep `api/openapi.yaml` generated and embedded through `api/docs.go`; the router serves it only in local/test mode.
 
 Planned deployment files still to add:
 - `deploy/Dockerfile`
@@ -227,8 +227,8 @@ Do not put business rules directly in handlers.
 Implemented:
 - Configuration loading and validation.
 - PostgreSQL pool startup and readiness checks.
-- JSON structured logging, panic recovery, request logging, secure headers, and graceful shutdown.
-- Embedded Swagger UI and generated OpenAPI artifact serving.
+- JSON structured logging, panic recovery, request logging, secure headers, production HSTS/CSP headers, strict JSON decoding, auth rate limiting, and graceful shutdown.
+- Embedded Swagger UI and generated OpenAPI artifact serving in local/test mode.
 - User registration, login, refresh-token rotation, session-backed logout, and current-user lookup.
 - Group creation, group listing, group details, and owner-only member addition.
 - Money parsing, formatting, validation, equal splitting, and manual split validation.
@@ -434,8 +434,8 @@ Disallowed:
 The current code registers these routes in `internal/app/routes.go`:
 
 ```text
-GET    /docs
-GET    /docs/openapi.yaml
+GET    /docs                  local/test only
+GET    /docs/openapi.yaml     local/test only
 
 POST   /v1/auth/register
 POST   /v1/auth/login
@@ -468,10 +468,12 @@ Rules:
 - All non-auth routes require authentication.
 - `POST /v1/auth/logout` requires authentication because it revokes the current session.
 - `POST /v1/auth/refresh` uses the refresh token, not an access-token bearer check.
+- `POST /v1/auth/register`, `POST /v1/auth/login`, and `POST /v1/auth/refresh` are rate-limited by client IP and route.
 - All group/expense/debt/payment/dashboard routes require authorization checks.
 - Path IDs must be validated.
 - Use consistent JSON response envelopes.
 - Return stable machine-readable error codes.
+- JSON-body endpoints return `400 invalid_json` for malformed bodies and `413 request_body_too_large` for bodies larger than 1 MiB.
 
 ---
 
@@ -481,6 +483,7 @@ Authentication requirements:
 - Store only password hashes.
 - Hash passwords with bcrypt.
 - Never log passwords, token values, or password hashes.
+- Token-issuing and logout responses must set `Cache-Control: no-store` and `Pragma: no-cache`.
 - Access tokens must be short-lived.
 - Use standard library HMAC signing for access tokens.
 - Validate token signature, expiry, issuer, audience, subject, session ID, and token ID.
@@ -488,8 +491,13 @@ Authentication requirements:
 - Refresh tokens must be opaque random values stored only as server-side hashes.
 - Revoke the current session on logout by setting `auth_sessions.revoked_at`.
 - Reject access tokens whose session is missing, expired, or revoked.
-- Production deployments should add rate limiting to auth endpoints.
+- Auth register/login/refresh routes use in-process rate limiting. Production deployments with multiple replicas should still add an edge or shared limiter.
 - Password reset and email verification are outside MVP scope unless explicitly added.
+
+HTTP security header requirements:
+- All responses include `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: no-referrer`.
+- Production responses also include `Strict-Transport-Security` and a restrictive `Content-Security-Policy`.
+- Local/test mode does not set HSTS so local HTTP development is not affected.
 
 Access token requirements:
 - Token payload must include `sub` user ID, `sid` session ID, `jti` token ID, `iss`, `aud`, `exp`, and `iat`.
@@ -863,10 +871,7 @@ Current layout:
 
 ```text
 api/openapi/root.yaml
-api/openapi/paths/health.yaml
-api/openapi/paths/auth.yaml
-api/openapi/paths/users.yaml
-api/openapi/paths/groups.yaml
+api/openapi/paths/
 api/openapi/components/
 ```
 
@@ -874,8 +879,9 @@ Generation:
 - `make openapi` runs the local standard-library bundler in `scripts/openapi`.
 - The bundler writes the served artifact to `api/openapi.yaml`.
 - `api/docs.go` embeds `api/openapi.yaml`.
-- `GET /docs/openapi.yaml` serves the generated artifact.
-- `GET /docs` serves Swagger UI pointing at that generated artifact.
+- `GET /docs/openapi.yaml` serves the generated artifact when `APP_ENV` is `local` or `test`.
+- `GET /docs` serves Swagger UI pointing at that generated artifact when `APP_ENV` is `local` or `test`.
+- Production mode does not register the Swagger UI or raw OpenAPI route.
 
 Build guidance:
 - Draft OpenAPI before implementing handlers.
@@ -891,9 +897,13 @@ Required tests:
 - Unit tests for money parsing, formatting, and splitting.
 - Unit tests for debt/payment state transitions.
 - Unit tests for request validation.
+- Unit tests for strict JSON body decoding.
+- Unit tests for JSON decode error-to-response mapping.
+- Unit tests for auth endpoint rate limiting.
+- Router tests for Swagger access by environment.
 - Handler tests using `httptest`.
 - Repository/integration tests against PostgreSQL.
-- Transaction/concurrency tests for payment confirmation.
+- Transaction/concurrency tests for payment marking and payment confirmation.
 
 Recommended commands:
 
@@ -901,10 +911,13 @@ Recommended commands:
 make openapi
 make sqlc
 make test
+make test-integration
 make vet
 make check
 GOCACHE=/tmp/mlakp-go-build go test -race ./...
 ```
+
+PostgreSQL integration tests use `MLAKP_TEST_DATABASE_URL` first and fall back to `DATABASE_URL`. They apply migrations into a temporary schema so the target database can be reused safely across runs.
 
 CI should run OpenAPI generation checks, tests, race checks where practical, vet, lint, sqlc generation checks, and migration checks.
 

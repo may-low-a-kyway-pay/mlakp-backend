@@ -51,7 +51,7 @@ func (h *PaymentHandler) Mark(w http.ResponseWriter, r *http.Request) {
 
 	var request markPaymentRequest
 	if err := decodeJSON(r, &request); err != nil {
-		response.Error(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON")
+		writeDecodeError(w, err)
 		return
 	}
 
@@ -80,7 +80,7 @@ func (h *PaymentHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var request reviewPaymentRequest
 	if err := decodeJSON(r, &request); err != nil {
-		response.Error(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON")
+		writeDecodeError(w, err)
 		return
 	}
 

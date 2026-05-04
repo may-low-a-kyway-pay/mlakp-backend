@@ -89,7 +89,7 @@ func (h *ExpenseHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var request createExpenseRequest
 	if err := decodeJSON(r, &request); err != nil {
-		response.Error(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON")
+		writeDecodeError(w, err)
 		return
 	}
 

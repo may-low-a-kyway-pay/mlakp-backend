@@ -24,6 +24,8 @@ type RouterDeps struct {
 	DashboardHandler *handlers.DashboardHandler
 	TokenManager     *auth.TokenManager
 	SessionService   *sessions.Service
+	AppEnv           string
+	AuthRateLimiter  *middleware.RateLimiter
 	ReadinessChecker interface {
 		Ping(context.Context) error
 	}
@@ -35,13 +37,20 @@ func NewRouter(logger *slog.Logger, deps RouterDeps) http.Handler {
 	// Public routes must stay outside the authenticated middleware.
 	mux.HandleFunc("GET /healthz", healthzHandler)
 	mux.HandleFunc("GET /readyz", readyzHandler(deps.ReadinessChecker))
-	mux.HandleFunc("GET /docs", docsHandler)
-	mux.HandleFunc("GET /docs/openapi.yaml", openAPIHandler)
+	if docsEnabled(deps.AppEnv) {
+		mux.HandleFunc("GET /docs", docsHandler)
+		mux.HandleFunc("GET /docs/openapi.yaml", openAPIHandler)
+	}
 
 	if deps.AuthHandler != nil {
-		mux.HandleFunc("POST /v1/auth/register", deps.AuthHandler.Register)
-		mux.HandleFunc("POST /v1/auth/login", deps.AuthHandler.Login)
-		mux.HandleFunc("POST /v1/auth/refresh", deps.AuthHandler.Refresh)
+		authRateLimiter := deps.AuthRateLimiter
+		if authRateLimiter == nil {
+			authRateLimiter = middleware.NewRateLimiter(20, time.Minute)
+		}
+
+		mux.Handle("POST /v1/auth/register", authRateLimiter.Limit(http.HandlerFunc(deps.AuthHandler.Register)))
+		mux.Handle("POST /v1/auth/login", authRateLimiter.Limit(http.HandlerFunc(deps.AuthHandler.Login)))
+		mux.Handle("POST /v1/auth/refresh", authRateLimiter.Limit(http.HandlerFunc(deps.AuthHandler.Refresh)))
 	}
 	if deps.AuthHandler != nil && deps.TokenManager != nil {
 		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
@@ -80,7 +89,11 @@ func NewRouter(logger *slog.Logger, deps RouterDeps) http.Handler {
 		mux.Handle("GET /v1/dashboard", authenticated(http.HandlerFunc(deps.DashboardHandler.Get)))
 	}
 
-	return recoverPanic(logger)(requestLogger(logger)(secureHeaders(mux)))
+	return recoverPanic(logger)(requestLogger(logger)(secureHeaders(deps.AppEnv)(mux)))
+}
+
+func docsEnabled(appEnv string) bool {
+	return appEnv == "" || appEnv == "local" || appEnv == "test"
 }
 
 func docsHandler(w http.ResponseWriter, r *http.Request) {
@@ -128,14 +141,21 @@ func readyzHandler(checker interface {
 	}
 }
 
-func secureHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("Referrer-Policy", "no-referrer")
+func secureHeaders(appEnv string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("X-Frame-Options", "DENY")
+			w.Header().Set("Referrer-Policy", "no-referrer")
 
-		next.ServeHTTP(w, r)
-	})
+			if appEnv == "production" {
+				w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+				w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {

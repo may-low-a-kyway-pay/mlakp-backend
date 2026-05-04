@@ -112,6 +112,10 @@
                     error:
                       code: invalid_debt_state
                       message: Debt cannot be updated from its current state
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
+        "500":
+          $ref: "#/components/responses/InternalError"
   /v1/debts/{debtID}/review:
     post:
       tags:
@@ -193,3 +197,7 @@
                     error:
                       code: invalid_debt_state
                       message: Debt cannot be updated from its current state
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
+        "500":
+          $ref: "#/components/responses/InternalError"

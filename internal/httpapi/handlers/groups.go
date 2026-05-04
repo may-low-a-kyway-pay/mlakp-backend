@@ -44,7 +44,7 @@ func (h *GroupHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Name string `json:"name"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
-		response.Error(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON")
+		writeDecodeError(w, err)
 		return
 	}
 
@@ -117,7 +117,7 @@ func (h *GroupHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		UserID string `json:"user_id"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
-		response.Error(w, http.StatusBadRequest, "invalid_json", "Request body must be valid JSON")
+		writeDecodeError(w, err)
 		return
 	}
 
