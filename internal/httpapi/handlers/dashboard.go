@@ -21,8 +21,26 @@ type dashboardAmountResponse struct {
 }
 
 type dashboardResponse struct {
-	YouOwe dashboardAmountResponse `json:"you_owe"`
-	YouGet dashboardAmountResponse `json:"you_get"`
+	YouOwe            dashboardAmountResponse    `json:"you_owe"`
+	YouGet            dashboardAmountResponse    `json:"you_get"`
+	UnsettledBalances []unsettledBalanceResponse `json:"unsettled_balances"`
+}
+
+type dashboardUserResponse struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type unsettledBalanceResponse struct {
+	ID              string                `json:"id"`
+	ExpenseID       string                `json:"expense_id"`
+	ExpenseTitle    string                `json:"expense_title"`
+	Type            string                `json:"type"`
+	OtherUser       dashboardUserResponse `json:"other_user"`
+	RemainingAmount string                `json:"remaining_amount"`
+	RemainingMinor  int64                 `json:"remaining_amount_minor"`
+	Status          string                `json:"status"`
+	UpdatedAt       string                `json:"updated_at"`
 }
 
 func NewDashboardHandler(dashboard *dashboard.Service) *DashboardHandler {
@@ -36,14 +54,14 @@ func (h *DashboardHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	totals, err := h.dashboard.Get(r.Context(), userID)
+	snapshot, err := h.dashboard.Get(r.Context(), userID)
 	if err != nil {
 		writeDashboardError(w, err)
 		return
 	}
 
 	response.Success(w, http.StatusOK, map[string]dashboardResponse{
-		"dashboard": toDashboardResponse(totals),
+		"dashboard": toDashboardResponse(snapshot, userID),
 	})
 }
 
@@ -56,10 +74,11 @@ func writeDashboardError(w http.ResponseWriter, err error) {
 	}
 }
 
-func toDashboardResponse(totals dashboard.Totals) dashboardResponse {
+func toDashboardResponse(snapshot dashboard.Snapshot, userID string) dashboardResponse {
 	return dashboardResponse{
-		YouOwe: toDashboardAmountResponse(totals.YouOwe),
-		YouGet: toDashboardAmountResponse(totals.YouGet),
+		YouOwe:            toDashboardAmountResponse(snapshot.Totals.YouOwe),
+		YouGet:            toDashboardAmountResponse(snapshot.Totals.YouGet),
+		UnsettledBalances: toUnsettledBalanceResponses(snapshot.UnsettledBalances, userID),
 	}
 }
 
@@ -69,4 +88,37 @@ func toDashboardAmountResponse(amount dashboard.DashboardAmount) dashboardAmount
 		AmountMinor: amount.AmountMinor,
 		DebtCount:   amount.DebtCount,
 	}
+}
+
+func toUnsettledBalanceResponses(balances []dashboard.UnsettledBalance, userID string) []unsettledBalanceResponse {
+	responses := make([]unsettledBalanceResponse, 0, len(balances))
+	for _, balance := range balances {
+		balanceType := "receivable"
+		otherUser := dashboardUserResponse{
+			ID:   balance.DebtorID,
+			Name: balance.DebtorName,
+		}
+
+		if balance.DebtorID == userID {
+			balanceType = "owed"
+			otherUser = dashboardUserResponse{
+				ID:   balance.CreditorID,
+				Name: balance.CreditorName,
+			}
+		}
+
+		responses = append(responses, unsettledBalanceResponse{
+			ID:              balance.ID,
+			ExpenseID:       balance.ExpenseID,
+			ExpenseTitle:    balance.ExpenseTitle,
+			Type:            balanceType,
+			OtherUser:       otherUser,
+			RemainingAmount: money.FormatMinor(balance.RemainingAmountMinor),
+			RemainingMinor:  balance.RemainingAmountMinor,
+			Status:          balance.Status,
+			UpdatedAt:       balance.UpdatedAt.Format(timeFormatRFC3339),
+		})
+	}
+
+	return responses
 }

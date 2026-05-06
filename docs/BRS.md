@@ -158,6 +158,7 @@ Dashboard rules:
 - Include only Accepted and Partially Settled debts.
 - Exclude Pending, Rejected, and Settled debts.
 - Use remaining debt amount, not original debt amount.
+- The dashboard can show a small unsettled-balance preview with the counterparty name and source expense title for active debts.
 
 ---
 
