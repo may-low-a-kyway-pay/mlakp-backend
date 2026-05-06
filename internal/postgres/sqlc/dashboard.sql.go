@@ -52,3 +52,69 @@ func (q *Queries) GetDashboardTotalsForUser(ctx context.Context, debtorID pgtype
 	)
 	return i, err
 }
+
+const listDashboardUnsettledBalances = `-- name: ListDashboardUnsettledBalances :many
+SELECT
+    d.id,
+    d.expense_id,
+    e.title AS expense_title,
+    d.debtor_id,
+    debtor.name AS debtor_name,
+    d.creditor_id,
+    creditor.name AS creditor_name,
+    d.remaining_amount_minor,
+    d.status,
+    d.updated_at
+FROM debts d
+JOIN expenses e ON e.id = d.expense_id
+JOIN users debtor ON debtor.id = d.debtor_id
+JOIN users creditor ON creditor.id = d.creditor_id
+WHERE (d.debtor_id = $1 OR d.creditor_id = $1)
+  AND d.status IN ('accepted', 'partially_settled')
+ORDER BY d.updated_at DESC, d.created_at DESC, d.id DESC
+LIMIT 5
+`
+
+type ListDashboardUnsettledBalancesRow struct {
+	ID                   pgtype.UUID
+	ExpenseID            pgtype.UUID
+	ExpenseTitle         string
+	DebtorID             pgtype.UUID
+	DebtorName           string
+	CreditorID           pgtype.UUID
+	CreditorName         string
+	RemainingAmountMinor int64
+	Status               string
+	UpdatedAt            pgtype.Timestamptz
+}
+
+func (q *Queries) ListDashboardUnsettledBalances(ctx context.Context, debtorID pgtype.UUID) ([]ListDashboardUnsettledBalancesRow, error) {
+	rows, err := q.db.Query(ctx, listDashboardUnsettledBalances, debtorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDashboardUnsettledBalancesRow
+	for rows.Next() {
+		var i ListDashboardUnsettledBalancesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ExpenseID,
+			&i.ExpenseTitle,
+			&i.DebtorID,
+			&i.DebtorName,
+			&i.CreditorID,
+			&i.CreditorName,
+			&i.RemainingAmountMinor,
+			&i.Status,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

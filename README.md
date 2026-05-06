@@ -1,6 +1,6 @@
 # MLAKP Backend
 
-Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation in local/test mode, rate-limited user registration/login/refresh, strict JSON request decoding, session-backed logout, the authenticated current-user endpoint, authenticated group creation, listing, details, member management, expense creation/detail/listing, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, current-user debt listing, payment marking/review, and dashboard totals.
+Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation in local/test mode, rate-limited user registration/login/refresh, strict JSON request decoding, session-backed logout, the authenticated current-user endpoint, authenticated group creation, listing, details, member management, expense creation/detail/listing, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, current-user debt listing, payment marking/review, and dashboard snapshots.
 
 ## Requirements
 
@@ -353,6 +353,8 @@ curl -s http://localhost:8080/v1/debts \
 curl -s http://localhost:8080/v1/dashboard \
   -H "Authorization: Bearer $TOKEN"
 ```
+
+The dashboard response includes `you_owe`, `you_get`, and an `unsettled_balances` preview with up to five active balances. Each preview item includes the source expense title, counterparty user, remaining amount, status, and whether the current user sees it as `owed` or `receivable`.
 
 Refresh the access token:
 

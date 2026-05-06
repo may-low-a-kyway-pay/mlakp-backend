@@ -707,6 +707,7 @@ Dashboard totals include only valid debts:
 Views:
 - `you_owe`: debts where current user is debtor.
 - `you_get`: debts where current user is creditor.
+- `unsettled_balances`: up to five most recently updated active debts involving the current user, with the source expense title, counterparty user, remaining amount, status, and whether the balance is `owed` or `receivable`.
 
 ---
 
