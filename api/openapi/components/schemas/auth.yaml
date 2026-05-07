@@ -3,6 +3,7 @@
       additionalProperties: false
       required:
         - name
+        - username
         - email
         - password
       properties:
@@ -10,6 +11,12 @@
           type: string
           minLength: 1
           maxLength: 120
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: "^[a-z0-9_]+$"
+          description: Unique lowercase username used for member search.
         email:
           type: string
           format: email

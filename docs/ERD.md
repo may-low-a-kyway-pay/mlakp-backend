@@ -38,6 +38,7 @@ erDiagram
     USERS {
         uuid id PK
         text name
+        text username UK
         text email UK
         text password_hash
         timestamptz created_at
@@ -133,16 +134,21 @@ erDiagram
 Required constraints:
 - `id uuid primary key default gen_random_uuid()`
 - `name text not null`
+- `username text not null`
 - `email text not null`
 - `password_hash text not null`
 - `created_at timestamptz not null default now()`
 - `updated_at timestamptz not null default now()`
+- `unique (username)`
 - `unique (email)`
+- `check (username = lower(username))`
+- `check (username ~ '^[a-z0-9_]{3,30}$')`
 - `check (email = lower(email))`
 - `check (length(name) between 1 and 120)`
 
 Application rule:
-- Normalize email to lowercase before insert/update.
+- Normalize username and email to lowercase before insert/update.
+- Usernames are the product-facing identifier for user search and group member addition.
 
 ### auth_sessions
 
@@ -292,6 +298,7 @@ Recommended indexes for core flows:
 
 ```sql
 create index idx_group_members_user_id on group_members(user_id);
+create index idx_users_username_search on users(username text_pattern_ops);
 create index idx_expenses_group_date on expenses(group_id, expense_date desc, created_at desc);
 create index idx_expense_participants_user_id on expense_participants(user_id);
 create index idx_debts_debtor_status on debts(debtor_id, status);

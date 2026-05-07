@@ -30,7 +30,8 @@ type GroupDetails struct {
 }
 
 type MemberUser struct {
-	ID    string
-	Name  string
-	Email string
+	ID       string
+	Name     string
+	Username string
+	Email    string
 }

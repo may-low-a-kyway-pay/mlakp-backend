@@ -229,8 +229,8 @@ Implemented:
 - PostgreSQL pool startup and readiness checks.
 - JSON structured logging, panic recovery, request logging, secure headers, production HSTS/CSP headers, strict JSON decoding, auth rate limiting, and graceful shutdown.
 - Embedded Swagger UI and generated OpenAPI artifact serving in local/test mode.
-- User registration, login, refresh-token rotation, session-backed logout, and current-user lookup.
-- Group creation, group listing, group details, and owner-only member addition.
+- User registration, login, refresh-token rotation, session-backed logout, current-user lookup, username search, and username update.
+- Group creation, group listing, group details, and owner-only member addition by username.
 - Money parsing, formatting, validation, equal splitting, and manual split validation.
 - Expense creation with participant rows and generated pending debts.
 - Debt acceptance and rejection by the debtor.
@@ -278,6 +278,7 @@ Use PostgreSQL as the source of truth for integrity.
 
 Required constraints:
 - `users.email` unique and case-normalized.
+- `users.username` unique and lowercase.
 - `group_members(group_id, user_id)` unique.
 - `expense_participants(expense_id, user_id)` unique.
 - Monetary columns use `BIGINT`.
@@ -290,6 +291,7 @@ Required constraints:
 - Financial history tables must use restrictive delete behavior.
 
 Recommended indexes:
+- `users(username text_pattern_ops)`.
 - `group_members(user_id)`.
 - `expenses(group_id, expense_date desc, created_at desc)`.
 - `debts(debtor_id, status)`.
@@ -442,6 +444,8 @@ POST   /v1/auth/login
 POST   /v1/auth/logout
 POST   /v1/auth/refresh
 GET    /v1/users/me
+PATCH  /v1/users/me
+GET    /v1/users/search
 
 POST   /v1/groups
 GET    /v1/groups
@@ -530,8 +534,10 @@ Server-side invalidation model:
 Authorization requirements:
 - Group creation inserts the creator as the initial owner.
 - Authenticated users can list and view only groups where they are members.
+- Authenticated users can search users by username prefix for member selection.
+- Authenticated users can update their own username, but usernames must remain unique.
 - Only group members can view group expenses.
-- Only group owners can add members to a group.
+- Only group owners can add members to a group, and add-member uses username rather than requiring users to know UUIDs.
 - Only authorized group members can create expenses for a group.
 - Payer must be a valid user and, for group expenses, a group member.
 - Participants must be valid users and, for group expenses, group members.

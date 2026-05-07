@@ -3,14 +3,21 @@ package users
 import (
 	"context"
 	"errors"
+	"regexp"
 	"strings"
 )
 
 var (
 	ErrInvalidName     = errors.New("name must be between 1 and 120 characters")
+	ErrInvalidUsername = errors.New("username must be 3 to 30 lowercase letters, numbers, or underscores")
 	ErrInvalidEmail    = errors.New("email is invalid")
 	ErrInvalidPassword = errors.New("password must be at least 8 characters")
 )
+
+const maxSearchResults = 10
+
+var usernamePattern = regexp.MustCompile(`^[a-z0-9_]{3,30}$`)
+var usernameSearchPattern = regexp.MustCompile(`^[a-z0-9_]+$`)
 
 type PasswordHasher interface {
 	HashPassword(password string) (string, error)
@@ -18,9 +25,12 @@ type PasswordHasher interface {
 }
 
 type Store interface {
-	Create(ctx context.Context, name, email, passwordHash string) (PrivateUser, error)
+	Create(ctx context.Context, name, username, email, passwordHash string) (PrivateUser, error)
 	GetByEmail(ctx context.Context, email string) (PrivateUser, error)
 	GetByID(ctx context.Context, id string) (User, error)
+	GetByUsername(ctx context.Context, username string) (User, error)
+	SearchByUsername(ctx context.Context, query string, limit int32) ([]User, error)
+	UpdateUsername(ctx context.Context, id, username string) (User, error)
 }
 
 type Service struct {
@@ -35,11 +45,15 @@ func NewService(repository Store, passwordHasher PasswordHasher) *Service {
 	}
 }
 
-func (s *Service) Register(ctx context.Context, name, email, password string) (User, error) {
+func (s *Service) Register(ctx context.Context, name, username, email, password string) (User, error) {
 	name = strings.TrimSpace(name)
+	username = normalizeUsername(username)
 	email = normalizeEmail(email)
 
 	if err := validateName(name); err != nil {
+		return User{}, err
+	}
+	if err := validateUsername(username); err != nil {
 		return User{}, err
 	}
 	if err := validateEmail(email); err != nil {
@@ -54,7 +68,7 @@ func (s *Service) Register(ctx context.Context, name, email, password string) (U
 		return User{}, err
 	}
 
-	user, err := s.repository.Create(ctx, name, email, passwordHash)
+	user, err := s.repository.Create(ctx, name, username, email, passwordHash)
 	if err != nil {
 		return User{}, err
 	}
@@ -83,6 +97,44 @@ func (s *Service) GetByID(ctx context.Context, id string) (User, error) {
 	return s.repository.GetByID(ctx, id)
 }
 
+func (s *Service) GetByUsername(ctx context.Context, username string) (User, error) {
+	username = normalizeUsername(username)
+	if err := validateUsername(username); err != nil {
+		return User{}, err
+	}
+
+	return s.repository.GetByUsername(ctx, username)
+}
+
+func (s *Service) SearchByUsername(ctx context.Context, query string) ([]User, error) {
+	query = normalizeUsername(query)
+	if len(query) < 2 {
+		return []User{}, nil
+	}
+	// Search is typeahead-friendly: incomplete or invalid prefixes simply return no matches.
+	if !usernameSearchPattern.MatchString(query) {
+		return []User{}, nil
+	}
+
+	return s.repository.SearchByUsername(ctx, query, maxSearchResults)
+}
+
+func (s *Service) UpdateUsername(ctx context.Context, id, username string) (User, error) {
+	username = normalizeUsername(username)
+	if strings.TrimSpace(id) == "" {
+		return User{}, ErrNotFound
+	}
+	if err := validateUsername(username); err != nil {
+		return User{}, err
+	}
+
+	return s.repository.UpdateUsername(ctx, id, username)
+}
+
+func normalizeUsername(username string) string {
+	return strings.ToLower(strings.TrimSpace(username))
+}
+
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
@@ -106,6 +158,14 @@ func validateEmail(email string) error {
 	}
 	if strings.ContainsAny(email, " \t\r\n") {
 		return ErrInvalidEmail
+	}
+
+	return nil
+}
+
+func validateUsername(username string) error {
+	if !usernamePattern.MatchString(username) {
+		return ErrInvalidUsername
 	}
 
 	return nil

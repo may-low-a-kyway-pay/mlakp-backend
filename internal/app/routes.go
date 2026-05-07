@@ -60,6 +60,8 @@ func NewRouter(logger *slog.Logger, deps RouterDeps) http.Handler {
 	if deps.UserHandler != nil && deps.TokenManager != nil {
 		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
 		mux.Handle("GET /v1/users/me", authenticated(http.HandlerFunc(deps.UserHandler.Me)))
+		mux.Handle("PATCH /v1/users/me", authenticated(http.HandlerFunc(deps.UserHandler.UpdateMe)))
+		mux.Handle("GET /v1/users/search", authenticated(http.HandlerFunc(deps.UserHandler.Search)))
 	}
 	if deps.GroupHandler != nil && deps.TokenManager != nil {
 		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
@@ -109,7 +111,7 @@ func cors(allowedOrigins []string) func(http.Handler) http.Handler {
 			origin := r.Header.Get("Origin")
 			if _, ok := allowed[origin]; ok {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
-				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
 				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept")
 				w.Header().Set("Access-Control-Max-Age", "600")
 				w.Header().Add("Vary", "Origin")

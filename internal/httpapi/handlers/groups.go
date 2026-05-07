@@ -7,10 +7,12 @@ import (
 	"mlakp-backend/internal/groups"
 	"mlakp-backend/internal/httpapi/middleware"
 	"mlakp-backend/internal/httpapi/response"
+	"mlakp-backend/internal/users"
 )
 
 type GroupHandler struct {
 	groups *groups.Service
+	users  *users.Service
 }
 
 type groupResponse struct {
@@ -31,13 +33,14 @@ type groupMemberResponse struct {
 }
 
 type groupMemberUserResponse struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
 }
 
-func NewGroupHandler(groups *groups.Service) *GroupHandler {
-	return &GroupHandler{groups: groups}
+func NewGroupHandler(groups *groups.Service, users *users.Service) *GroupHandler {
+	return &GroupHandler{groups: groups, users: users}
 }
 
 func (h *GroupHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -121,14 +124,24 @@ func (h *GroupHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var request struct {
-		UserID string `json:"user_id"`
+		Username string `json:"username"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeDecodeError(w, err)
 		return
 	}
 
-	member, err := h.groups.AddMember(r.Context(), r.PathValue("groupID"), userID, request.UserID)
+	user, err := h.users.GetByUsername(r.Context(), request.Username)
+	if err != nil {
+		if errors.Is(err, users.ErrInvalidUsername) {
+			writeGroupError(w, groups.ErrInvalidUserID)
+			return
+		}
+		writeGroupError(w, groups.ErrMemberNotFound)
+		return
+	}
+
+	member, err := h.groups.AddMember(r.Context(), r.PathValue("groupID"), userID, user.ID)
 	if err != nil {
 		writeGroupError(w, err)
 		return
@@ -181,9 +194,10 @@ func toGroupMemberResponse(member groups.Member) groupMemberResponse {
 
 	if member.User != nil {
 		response.User = &groupMemberUserResponse{
-			ID:    member.User.ID,
-			Name:  member.User.Name,
-			Email: member.User.Email,
+			ID:       member.User.ID,
+			Name:     member.User.Name,
+			Username: member.User.Username,
+			Email:    member.User.Email,
 		}
 	}
 

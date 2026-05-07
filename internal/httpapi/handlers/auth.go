@@ -24,9 +24,10 @@ type AuthHandler struct {
 }
 
 type authUserResponse struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
 }
 
 type tokenResponse struct {
@@ -55,6 +56,7 @@ func NewAuthHandler(users *users.Service, tokenManager *auth.TokenManager, sessi
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Name     string `json:"name"`
+		Username string `json:"username"`
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
@@ -63,7 +65,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.users.Register(r.Context(), request.Name, request.Email, request.Password)
+	user, err := h.users.Register(r.Context(), request.Name, request.Username, request.Email, request.Password)
 	if err != nil {
 		writeUserError(w, err)
 		return
@@ -186,12 +188,18 @@ func writeUserError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, users.ErrInvalidName):
 		response.Error(w, http.StatusBadRequest, "invalid_name", "Name must be between 1 and 120 characters")
+	case errors.Is(err, users.ErrInvalidUsername):
+		response.Error(w, http.StatusBadRequest, "invalid_username", "Username must be 3 to 30 lowercase letters, numbers, or underscores")
 	case errors.Is(err, users.ErrInvalidEmail):
 		response.Error(w, http.StatusBadRequest, "invalid_email", "Email is invalid")
 	case errors.Is(err, users.ErrInvalidPassword):
 		response.Error(w, http.StatusBadRequest, "invalid_password", "Password must be at least 8 characters")
+	case errors.Is(err, users.ErrUsernameConflict):
+		response.Error(w, http.StatusConflict, "username_already_registered", "Username is already registered")
 	case errors.Is(err, users.ErrEmailConflict):
 		response.Error(w, http.StatusConflict, "email_already_registered", "Email is already registered")
+	case errors.Is(err, users.ErrNotFound):
+		response.Error(w, http.StatusNotFound, "user_not_found", "User was not found")
 	default:
 		response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
 	}
@@ -243,9 +251,10 @@ func writeAuthNoStoreHeaders(w http.ResponseWriter) {
 
 func toAuthUserResponse(user users.User) authUserResponse {
 	return authUserResponse{
-		ID:    user.ID,
-		Name:  user.Name,
-		Email: user.Email,
+		ID:       user.ID,
+		Name:     user.Name,
+		Username: user.Username,
+		Email:    user.Email,
 	}
 }
 
