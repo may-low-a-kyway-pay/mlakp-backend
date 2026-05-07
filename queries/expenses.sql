@@ -79,11 +79,34 @@ FROM debts
 WHERE id = $1;
 
 -- name: ListDebtsForUser :many
-SELECT id, expense_id, debtor_id, creditor_id, original_amount_minor, remaining_amount_minor, status, accepted_at, rejected_at, settled_at, created_at, updated_at
-FROM debts
-WHERE debtor_id = $1
-   OR creditor_id = $1
-ORDER BY updated_at DESC, created_at DESC, id DESC;
+SELECT
+    d.id,
+    d.expense_id,
+    e.title AS expense_title,
+    d.debtor_id,
+    debtor.name AS debtor_name,
+    d.creditor_id,
+    creditor.name AS creditor_name,
+    d.original_amount_minor,
+    d.remaining_amount_minor,
+    d.status,
+    d.accepted_at,
+    d.rejected_at,
+    d.settled_at,
+    d.created_at,
+    d.updated_at
+FROM debts d
+JOIN expenses e ON e.id = d.expense_id
+JOIN users debtor ON debtor.id = d.debtor_id
+JOIN users creditor ON creditor.id = d.creditor_id
+WHERE (d.debtor_id = $1 OR d.creditor_id = $1)
+  AND (sqlc.narg(status)::text IS NULL OR d.status = sqlc.narg(status)::text)
+  AND (
+      sqlc.narg(balance_type)::text IS NULL
+      OR (sqlc.narg(balance_type)::text = 'owed' AND d.debtor_id = $1)
+      OR (sqlc.narg(balance_type)::text = 'receivable' AND d.creditor_id = $1)
+  )
+ORDER BY d.updated_at DESC, d.created_at DESC, d.id DESC;
 
 -- name: AcceptDebt :one
 UPDATE debts

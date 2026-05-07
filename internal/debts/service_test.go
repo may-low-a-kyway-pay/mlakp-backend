@@ -99,12 +99,16 @@ func TestServiceReviewRejectedTrimsAndParsesInput(t *testing.T) {
 
 func TestServiceListValidatesAndTrimsInput(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   ListInput
-		wantErr error
+		name            string
+		input           ListInput
+		wantErr         error
+		wantStatus      *string
+		wantBalanceType *string
 	}{
 		{name: "missing user", input: ListInput{UserID: " "}, wantErr: ErrInvalidUserID},
-		{name: "valid", input: ListInput{UserID: " user-1 "}},
+		{name: "invalid status", input: ListInput{UserID: "user-1", Status: "unknown"}, wantErr: ErrInvalidStatus},
+		{name: "invalid balance type", input: ListInput{UserID: "user-1", BalanceType: "mine"}, wantErr: ErrInvalidBalanceType},
+		{name: "valid", input: ListInput{UserID: " user-1 ", Status: " accepted ", BalanceType: " owed "}, wantStatus: stringPtr(StatusAccepted), wantBalanceType: stringPtr(BalanceTypeOwed)},
 	}
 
 	for _, tt := range tests {
@@ -115,8 +119,17 @@ func TestServiceListValidatesAndTrimsInput(t *testing.T) {
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("List() error = %v, want %v", err, tt.wantErr)
 			}
-			if tt.wantErr == nil && store.userID != "user-1" {
-				t.Fatalf("userID = %q, want user-1", store.userID)
+			if tt.wantErr != nil {
+				return
+			}
+			if store.listFilters.UserID != "user-1" {
+				t.Fatalf("userID = %q, want user-1", store.listFilters.UserID)
+			}
+			if !stringPtrEqual(store.listFilters.Status, tt.wantStatus) {
+				t.Fatalf("status = %v, want %v", store.listFilters.Status, tt.wantStatus)
+			}
+			if !stringPtrEqual(store.listFilters.BalanceType, tt.wantBalanceType) {
+				t.Fatalf("balanceType = %v, want %v", store.listFilters.BalanceType, tt.wantBalanceType)
 			}
 		})
 	}
@@ -126,6 +139,7 @@ type fakeStore struct {
 	debtID       string
 	userID       string
 	reviewParams ReviewRejectedParams
+	listFilters  ListFilters
 }
 
 func (s *fakeStore) Accept(_ context.Context, debtID, debtorID string) (Debt, error) {
@@ -145,11 +159,18 @@ func (s *fakeStore) ReviewRejected(_ context.Context, params ReviewRejectedParam
 	return Debt{}, nil
 }
 
-func (s *fakeStore) ListForUser(_ context.Context, userID string) ([]Debt, error) {
-	s.userID = userID
+func (s *fakeStore) ListForUser(_ context.Context, filters ListFilters) ([]ListItem, error) {
+	s.listFilters = filters
 	return nil, nil
 }
 
 func stringPtr(value string) *string {
 	return &value
+}
+
+func stringPtrEqual(left, right *string) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	return *left == *right
 }

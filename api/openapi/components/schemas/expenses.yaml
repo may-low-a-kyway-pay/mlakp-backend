@@ -247,12 +247,18 @@
         expense_id:
           type: string
           format: uuid
+        expense_title:
+          type: string
         debtor_id:
           type: string
           format: uuid
+        debtor_name:
+          type: string
         creditor_id:
           type: string
           format: uuid
+        creditor_name:
+          type: string
         original_amount:
           type: string
         original_amount_minor:

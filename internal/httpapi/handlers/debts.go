@@ -33,7 +33,11 @@ func (h *DebtHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	debtList, err := h.debts.List(r.Context(), debts.ListInput{UserID: userID})
+	debtList, err := h.debts.List(r.Context(), debts.ListInput{
+		UserID:      userID,
+		Status:      r.URL.Query().Get("status"),
+		BalanceType: r.URL.Query().Get("type"),
+	})
 	if err != nil {
 		writeDebtError(w, err)
 		return
@@ -41,7 +45,7 @@ func (h *DebtHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	debtsResponse := make([]debtResponse, 0, len(debtList))
 	for _, debt := range debtList {
-		debtsResponse = append(debtsResponse, toDebtResponse(debt))
+		debtsResponse = append(debtsResponse, toDebtListItemResponse(debt))
 	}
 
 	response.Success(w, http.StatusOK, map[string][]debtResponse{
@@ -109,6 +113,10 @@ func writeDebtError(w http.ResponseWriter, err error) {
 		response.Error(w, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
 	case errors.Is(err, debts.ErrInvalidType):
 		response.Error(w, http.StatusBadRequest, "invalid_debt_transition_type", "Debt transition type must be accept or reject")
+	case errors.Is(err, debts.ErrInvalidStatus):
+		response.Error(w, http.StatusBadRequest, "invalid_debt_status", "Debt status filter is invalid")
+	case errors.Is(err, debts.ErrInvalidBalanceType):
+		response.Error(w, http.StatusBadRequest, "invalid_debt_type", "Debt type filter must be owed or receivable")
 	case errors.Is(err, debts.ErrInvalidAmount):
 		response.Error(w, http.StatusBadRequest, "invalid_amount", "Debt amount is invalid")
 	case errors.Is(err, debts.ErrNotFound):
@@ -120,6 +128,14 @@ func writeDebtError(w http.ResponseWriter, err error) {
 	default:
 		response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
 	}
+}
+
+func toDebtListItemResponse(debt debts.ListItem) debtResponse {
+	response := toDebtResponse(debt.Debt)
+	response.ExpenseTitle = &debt.ExpenseTitle
+	response.DebtorName = &debt.DebtorName
+	response.CreditorName = &debt.CreditorName
+	return response
 }
 
 func toDebtResponse(debt debts.Debt) debtResponse {

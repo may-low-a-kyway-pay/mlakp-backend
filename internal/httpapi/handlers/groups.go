@@ -134,7 +134,7 @@ func (h *GroupHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	user, err := h.users.GetByUsername(r.Context(), request.Username)
 	if err != nil {
 		if errors.Is(err, users.ErrInvalidUsername) {
-			writeGroupError(w, groups.ErrInvalidUserID)
+			response.Error(w, http.StatusBadRequest, "invalid_username", "Username must be 3 to 30 lowercase letters, numbers, or underscores")
 			return
 		}
 		writeGroupError(w, groups.ErrMemberNotFound)

@@ -334,27 +334,77 @@ func (q *Queries) ListDebtsByExpense(ctx context.Context, expenseID pgtype.UUID)
 }
 
 const listDebtsForUser = `-- name: ListDebtsForUser :many
-SELECT id, expense_id, debtor_id, creditor_id, original_amount_minor, remaining_amount_minor, status, accepted_at, rejected_at, settled_at, created_at, updated_at
-FROM debts
-WHERE debtor_id = $1
-   OR creditor_id = $1
-ORDER BY updated_at DESC, created_at DESC, id DESC
+SELECT
+    d.id,
+    d.expense_id,
+    e.title AS expense_title,
+    d.debtor_id,
+    debtor.name AS debtor_name,
+    d.creditor_id,
+    creditor.name AS creditor_name,
+    d.original_amount_minor,
+    d.remaining_amount_minor,
+    d.status,
+    d.accepted_at,
+    d.rejected_at,
+    d.settled_at,
+    d.created_at,
+    d.updated_at
+FROM debts d
+JOIN expenses e ON e.id = d.expense_id
+JOIN users debtor ON debtor.id = d.debtor_id
+JOIN users creditor ON creditor.id = d.creditor_id
+WHERE (d.debtor_id = $1 OR d.creditor_id = $1)
+  AND ($2::text IS NULL OR d.status = $2::text)
+  AND (
+      $3::text IS NULL
+      OR ($3::text = 'owed' AND d.debtor_id = $1)
+      OR ($3::text = 'receivable' AND d.creditor_id = $1)
+  )
+ORDER BY d.updated_at DESC, d.created_at DESC, d.id DESC
 `
 
-func (q *Queries) ListDebtsForUser(ctx context.Context, debtorID pgtype.UUID) ([]Debt, error) {
-	rows, err := q.db.Query(ctx, listDebtsForUser, debtorID)
+type ListDebtsForUserParams struct {
+	DebtorID    pgtype.UUID
+	Status      pgtype.Text
+	BalanceType pgtype.Text
+}
+
+type ListDebtsForUserRow struct {
+	ID                   pgtype.UUID
+	ExpenseID            pgtype.UUID
+	ExpenseTitle         string
+	DebtorID             pgtype.UUID
+	DebtorName           string
+	CreditorID           pgtype.UUID
+	CreditorName         string
+	OriginalAmountMinor  int64
+	RemainingAmountMinor int64
+	Status               string
+	AcceptedAt           pgtype.Timestamptz
+	RejectedAt           pgtype.Timestamptz
+	SettledAt            pgtype.Timestamptz
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+}
+
+func (q *Queries) ListDebtsForUser(ctx context.Context, arg ListDebtsForUserParams) ([]ListDebtsForUserRow, error) {
+	rows, err := q.db.Query(ctx, listDebtsForUser, arg.DebtorID, arg.Status, arg.BalanceType)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Debt
+	var items []ListDebtsForUserRow
 	for rows.Next() {
-		var i Debt
+		var i ListDebtsForUserRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ExpenseID,
+			&i.ExpenseTitle,
 			&i.DebtorID,
+			&i.DebtorName,
 			&i.CreditorID,
+			&i.CreditorName,
 			&i.OriginalAmountMinor,
 			&i.RemainingAmountMinor,
 			&i.Status,
