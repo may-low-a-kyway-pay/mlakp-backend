@@ -22,11 +22,18 @@ type groupResponse struct {
 }
 
 type groupMemberResponse struct {
-	ID       string `json:"id"`
-	GroupID  string `json:"group_id"`
-	UserID   string `json:"user_id"`
-	Role     string `json:"role"`
-	JoinedAt string `json:"joined_at"`
+	ID       string                   `json:"id"`
+	GroupID  string                   `json:"group_id"`
+	UserID   string                   `json:"user_id"`
+	Role     string                   `json:"role"`
+	JoinedAt string                   `json:"joined_at"`
+	User     *groupMemberUserResponse `json:"user,omitempty"`
+}
+
+type groupMemberUserResponse struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }
 
 func NewGroupHandler(groups *groups.Service) *GroupHandler {
@@ -164,11 +171,21 @@ func toGroupResponse(group groups.Group) groupResponse {
 }
 
 func toGroupMemberResponse(member groups.Member) groupMemberResponse {
-	return groupMemberResponse{
+	response := groupMemberResponse{
 		ID:       member.ID,
 		GroupID:  member.GroupID,
 		UserID:   member.UserID,
 		Role:     member.Role,
 		JoinedAt: member.JoinedAt.Format(timeFormatRFC3339),
 	}
+
+	if member.User != nil {
+		response.User = &groupMemberUserResponse{
+			ID:    member.User.ID,
+			Name:  member.User.Name,
+			Email: member.User.Email,
+		}
+	}
+
+	return response
 }

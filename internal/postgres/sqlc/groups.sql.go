@@ -109,8 +109,9 @@ func (q *Queries) IsGroupOwner(ctx context.Context, arg IsGroupOwnerParams) (boo
 }
 
 const listGroupMembersForUser = `-- name: ListGroupMembersForUser :many
-SELECT gm.id, gm.group_id, gm.user_id, gm.role, gm.joined_at
+SELECT gm.id, gm.group_id, gm.user_id, gm.role, gm.joined_at, u.name AS user_name, u.email AS user_email
 FROM group_members gm
+JOIN users u ON u.id = gm.user_id
 JOIN group_members viewer ON viewer.group_id = gm.group_id
 WHERE gm.group_id = $1
   AND viewer.user_id = $2
@@ -122,21 +123,33 @@ type ListGroupMembersForUserParams struct {
 	UserID  pgtype.UUID
 }
 
-func (q *Queries) ListGroupMembersForUser(ctx context.Context, arg ListGroupMembersForUserParams) ([]GroupMember, error) {
+type ListGroupMembersForUserRow struct {
+	ID        pgtype.UUID
+	GroupID   pgtype.UUID
+	UserID    pgtype.UUID
+	Role      string
+	JoinedAt  pgtype.Timestamptz
+	UserName  string
+	UserEmail string
+}
+
+func (q *Queries) ListGroupMembersForUser(ctx context.Context, arg ListGroupMembersForUserParams) ([]ListGroupMembersForUserRow, error) {
 	rows, err := q.db.Query(ctx, listGroupMembersForUser, arg.GroupID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GroupMember
+	var items []ListGroupMembersForUserRow
 	for rows.Next() {
-		var i GroupMember
+		var i ListGroupMembersForUserRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.GroupID,
 			&i.UserID,
 			&i.Role,
 			&i.JoinedAt,
+			&i.UserName,
+			&i.UserEmail,
 		); err != nil {
 			return nil, err
 		}

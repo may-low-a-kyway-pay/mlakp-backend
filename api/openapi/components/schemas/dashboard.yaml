@@ -80,6 +80,7 @@
         status:
           type: string
           enum:
+            - pending
             - accepted
             - partially_settled
         updated_at:

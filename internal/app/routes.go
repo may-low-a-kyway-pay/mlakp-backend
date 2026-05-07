@@ -25,6 +25,7 @@ type RouterDeps struct {
 	TokenManager     *auth.TokenManager
 	SessionService   *sessions.Service
 	AppEnv           string
+	CORSOrigins      []string
 	AuthRateLimiter  *middleware.RateLimiter
 	ReadinessChecker interface {
 		Ping(context.Context) error
@@ -89,11 +90,39 @@ func NewRouter(logger *slog.Logger, deps RouterDeps) http.Handler {
 		mux.Handle("GET /v1/dashboard", authenticated(http.HandlerFunc(deps.DashboardHandler.Get)))
 	}
 
-	return recoverPanic(logger)(requestLogger(logger)(secureHeaders(deps.AppEnv)(mux)))
+	handler := cors(deps.CORSOrigins)(mux)
+	return recoverPanic(logger)(requestLogger(logger)(secureHeaders(deps.AppEnv)(handler)))
 }
 
 func docsEnabled(appEnv string) bool {
 	return appEnv == "" || appEnv == "local" || appEnv == "test"
+}
+
+func cors(allowedOrigins []string) func(http.Handler) http.Handler {
+	allowed := make(map[string]struct{}, len(allowedOrigins))
+	for _, origin := range allowedOrigins {
+		allowed[origin] = struct{}{}
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if _, ok := allowed[origin]; ok {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept")
+				w.Header().Set("Access-Control-Max-Age", "600")
+				w.Header().Add("Vary", "Origin")
+			}
+
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func docsHandler(w http.ResponseWriter, r *http.Request) {

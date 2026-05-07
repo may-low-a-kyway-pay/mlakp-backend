@@ -136,3 +136,44 @@ func TestLocalSecurityHeadersDoNotSetHSTS(t *testing.T) {
 		t.Fatalf("Strict-Transport-Security = %q, want empty for local", response.Header().Get("Strict-Transport-Security"))
 	}
 }
+
+func TestCORSAllowedOrigin(t *testing.T) {
+	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), RouterDeps{
+		AppEnv:      "production",
+		CORSOrigins: []string{"http://localhost:8081"},
+	})
+
+	request := httptest.NewRequest(http.MethodOptions, "/v1/auth/login", nil)
+	request.Header.Set("Origin", "http://localhost:8081")
+	request.Header.Set("Access-Control-Request-Method", http.MethodPost)
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("response.Code = %d, want %d", response.Code, http.StatusNoContent)
+	}
+	if response.Header().Get("Access-Control-Allow-Origin") != "http://localhost:8081" {
+		t.Fatalf("Access-Control-Allow-Origin = %q, want allowed origin", response.Header().Get("Access-Control-Allow-Origin"))
+	}
+	if response.Header().Get("Strict-Transport-Security") != "max-age=31536000; includeSubDomains" {
+		t.Fatalf("Strict-Transport-Security = %q, want production HSTS", response.Header().Get("Strict-Transport-Security"))
+	}
+}
+
+func TestCORSRejectsUnknownOrigin(t *testing.T) {
+	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), RouterDeps{
+		CORSOrigins: []string{"http://localhost:8081"},
+	})
+
+	request := httptest.NewRequest(http.MethodOptions, "/v1/auth/login", nil)
+	request.Header.Set("Origin", "http://malicious.example")
+	request.Header.Set("Access-Control-Request-Method", http.MethodPost)
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("Access-Control-Allow-Origin = %q, want empty", response.Header().Get("Access-Control-Allow-Origin"))
+	}
+}

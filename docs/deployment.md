@@ -124,6 +124,7 @@ DATABASE_URL=postgres://postgres.<project-ref>:<password>@aws-0-<region>.pooler.
 TOKEN_ISSUER=mlakp-backend
 TOKEN_AUDIENCE=mlakp-api
 TOKEN_SECRET=<long-random-production-secret-at-least-32-bytes>
+CORS_ALLOWED_ORIGINS=http://localhost:8081,http://localhost:19006
 ACCESS_TOKEN_TTL=15m
 REFRESH_TOKEN_TTL=720h
 READ_TIMEOUT=5s
@@ -138,6 +139,7 @@ Important repo-specific details:
 - Render's default web port is `10000`, so set `APP_PORT=10000`.
 - `APP_ENV=production` disables the `/docs` route.
 - `TOKEN_SECRET` must be at least 32 bytes in production.
+- `CORS_ALLOWED_ORIGINS` must include every browser origin that should call the API. For Expo web local testing, include `http://localhost:8081`. Use exact origins only: scheme, host, and optional port, with no paths.
 - `DATABASE_URL` must use `postgres://` or `postgresql://` and include a database name.
 
 ### 2.5 Configure Health Check

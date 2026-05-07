@@ -80,6 +80,7 @@ DATABASE_URL=postgres://mlakp:mlakp@localhost:5432/mlakp?sslmode=disable
 TOKEN_ISSUER=mlakp-backend
 TOKEN_AUDIENCE=mlakp-api
 TOKEN_SECRET=change-me-local-development-secret
+CORS_ALLOWED_ORIGINS=http://localhost:8081,http://localhost:19006
 ACCESS_TOKEN_TTL=15m
 REFRESH_TOKEN_TTL=720h
 READ_TIMEOUT=5s
@@ -104,6 +105,7 @@ Important environment rules enforced by `internal/config`:
 - `APP_PORT` must be a valid TCP port.
 - `DATABASE_URL` must use `postgres://` or `postgresql://` and include a database name.
 - `TOKEN_SECRET` is required. In production it must be at least 32 bytes.
+- `CORS_ALLOWED_ORIGINS` is a comma-separated list of exact browser origins allowed to call the API. Include scheme, host, and optional port only, for example `http://localhost:8081`; do not include paths.
 - Token TTL and timeout values must be valid Go durations such as `15m`, `5s`, or `1h`.
 
 After `.env` is ready, continue with database setup and migrations below.
@@ -309,6 +311,15 @@ curl -s http://localhost:8080/v1/groups \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+Read a group with members:
+
+```sh
+curl -s http://localhost:8080/v1/groups/$GROUP_ID \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+The group detail response includes each member's `user_id`, role, join time, and `user` profile summary. Mobile clients use that member list to select expense participants.
+
 Add a member as the group owner:
 
 ```sh
@@ -354,7 +365,7 @@ curl -s http://localhost:8080/v1/dashboard \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-The dashboard response includes `you_owe`, `you_get`, and an `unsettled_balances` preview with up to five active balances. Each preview item includes the source expense title, counterparty user, remaining amount, status, and whether the current user sees it as `owed` or `receivable`.
+The dashboard response includes `you_owe`, `you_get`, and an `unsettled_balances` preview with up to five pending or active balances that still have remaining amount. Each preview item includes the source expense title, counterparty user, remaining amount, status, and whether the current user sees it as `owed` or `receivable`.
 
 Refresh the access token:
 

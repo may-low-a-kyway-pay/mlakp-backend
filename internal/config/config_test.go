@@ -68,6 +68,36 @@ func TestLoadRejectsShortProductionTokenSecret(t *testing.T) {
 	}
 }
 
+func TestLoadParsesCORSOrigins(t *testing.T) {
+	setValidEnv(t)
+	t.Setenv("CORS_ALLOWED_ORIGINS", "http://localhost:8081, https://app.example.com ")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if len(cfg.CORSOrigins) != 2 {
+		t.Fatalf("len(cfg.CORSOrigins) = %d, want 2", len(cfg.CORSOrigins))
+	}
+	if cfg.CORSOrigins[0] != "http://localhost:8081" || cfg.CORSOrigins[1] != "https://app.example.com" {
+		t.Fatalf("cfg.CORSOrigins = %#v, want parsed origins", cfg.CORSOrigins)
+	}
+}
+
+func TestLoadRejectsInvalidCORSOrigin(t *testing.T) {
+	setValidEnv(t)
+	t.Setenv("CORS_ALLOWED_ORIGINS", "localhost:8081")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() error = nil, want invalid CORS origin error")
+	}
+	if !strings.Contains(err.Error(), "CORS_ALLOWED_ORIGINS") {
+		t.Fatalf("Load() error = %q, want CORS_ALLOWED_ORIGINS validation error", err.Error())
+	}
+}
+
 func setValidEnv(t *testing.T) {
 	t.Helper()
 

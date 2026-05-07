@@ -40,7 +40,7 @@ func TestToDashboardResponseIncludesUnsettledBalances(t *testing.T) {
 				CreditorID:           currentUserID,
 				CreditorName:         "Thomas",
 				RemainingAmountMinor: 2000,
-				Status:               "partially_settled",
+				Status:               "pending",
 				UpdatedAt:            updatedAt,
 			},
 		},
@@ -76,5 +76,8 @@ func TestToDashboardResponseIncludesUnsettledBalances(t *testing.T) {
 	}
 	if receivable.UpdatedAt != "2026-05-06T12:30:00Z" {
 		t.Fatalf("receivable.UpdatedAt = %q, want 2026-05-06T12:30:00Z", receivable.UpdatedAt)
+	}
+	if receivable.Status != "pending" {
+		t.Fatalf("receivable.Status = %q, want pending", receivable.Status)
 	}
 }

@@ -21,9 +21,16 @@ type Member struct {
 	UserID   string
 	Role     string
 	JoinedAt time.Time
+	User     *MemberUser
 }
 
 type GroupDetails struct {
 	Group   Group
 	Members []Member
+}
+
+type MemberUser struct {
+	ID    string
+	Name  string
+	Email string
 }

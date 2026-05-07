@@ -23,8 +23,9 @@ WHERE g.id = $1
   AND gm.user_id = $2;
 
 -- name: ListGroupMembersForUser :many
-SELECT gm.id, gm.group_id, gm.user_id, gm.role, gm.joined_at
+SELECT gm.id, gm.group_id, gm.user_id, gm.role, gm.joined_at, u.name AS user_name, u.email AS user_email
 FROM group_members gm
+JOIN users u ON u.id = gm.user_id
 JOIN group_members viewer ON viewer.group_id = gm.group_id
 WHERE gm.group_id = $1
   AND viewer.user_id = $2

@@ -70,7 +70,8 @@ JOIN expenses e ON e.id = d.expense_id
 JOIN users debtor ON debtor.id = d.debtor_id
 JOIN users creditor ON creditor.id = d.creditor_id
 WHERE (d.debtor_id = $1 OR d.creditor_id = $1)
-  AND d.status IN ('accepted', 'partially_settled')
+  AND d.status IN ('pending', 'accepted', 'partially_settled')
+  AND d.remaining_amount_minor > 0
 ORDER BY d.updated_at DESC, d.created_at DESC, d.id DESC
 LIMIT 5
 `

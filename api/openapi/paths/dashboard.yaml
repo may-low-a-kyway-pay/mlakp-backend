@@ -3,7 +3,7 @@
       tags:
         - Dashboard
       summary: Get dashboard snapshot
-      description: Returns current-user you_owe and you_get totals plus the five most recent unsettled balances from accepted and partially settled debts.
+      description: Returns current-user you_owe and you_get totals for accepted and partially settled debts plus the five most recent pending or active unsettled balances with remaining amount.
       security:
         - bearerAuth: []
       responses:
