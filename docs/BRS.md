@@ -159,9 +159,10 @@ Users can view:
 
 Dashboard rules:
 - Include only Accepted and Partially Settled debts.
-- Exclude Pending, Rejected, and Settled debts.
+- Exclude Pending, Rejected, and Settled debts from total calculations.
 - Use remaining debt amount, not original debt amount.
-- The dashboard can show a small unsettled-balance preview with the counterparty name and source expense title for active debts.
+- The dashboard can show a small unsettled-balance preview with the counterparty name and source expense title for Pending, Accepted, and Partially Settled debts with remaining balance.
+- A separate full balances view can list all current-user debt records with filters for status and owed/receivable direction.
 
 ---
 

@@ -546,6 +546,7 @@ Authorization requirements:
 - Only debtor can create payment records for their debt.
 - Only creditor can confirm or reject payment records.
 - Historical debts and payments remain accessible to involved users for audit purposes.
+- `GET /v1/debts` supports optional `status` and `type=owed|receivable` query filters so clients can show a full records page without overloading the dashboard preview.
 
 ---
 
@@ -714,6 +715,7 @@ Views:
 - `you_owe`: debts where current user is debtor.
 - `you_get`: debts where current user is creditor.
 - `unsettled_balances`: up to five most recently updated pending or active debts involving the current user where `remaining_amount_minor > 0`, with the source expense title, counterparty user, remaining amount, status, and whether the balance is `owed` or `receivable`.
+- Full debt history is exposed separately through `GET /v1/debts`; the dashboard intentionally remains a latest-records summary.
 
 ---
 

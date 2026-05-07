@@ -6,9 +6,14 @@ const (
 	TransitionAccept = "accept"
 	TransitionReject = "reject"
 
-	StatusPending  = "pending"
-	StatusAccepted = "accepted"
-	StatusRejected = "rejected"
+	StatusPending          = "pending"
+	StatusAccepted         = "accepted"
+	StatusRejected         = "rejected"
+	StatusPartiallySettled = "partially_settled"
+	StatusSettled          = "settled"
+
+	BalanceTypeOwed       = "owed"
+	BalanceTypeReceivable = "receivable"
 )
 
 type Debt struct {
@@ -26,6 +31,13 @@ type Debt struct {
 	UpdatedAt            time.Time
 }
 
+type ListItem struct {
+	Debt
+	ExpenseTitle string
+	DebtorName   string
+	CreditorName string
+}
+
 type ReviewRejectedInput struct {
 	DebtID     string
 	ReviewerID string
@@ -33,7 +45,15 @@ type ReviewRejectedInput struct {
 }
 
 type ListInput struct {
-	UserID string
+	UserID      string
+	Status      string
+	BalanceType string
+}
+
+type ListFilters struct {
+	UserID      string
+	Status      *string
+	BalanceType *string
 }
 
 type ReviewRejectedParams struct {

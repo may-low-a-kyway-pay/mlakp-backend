@@ -80,20 +80,30 @@ func (r *Repository) ReviewRejected(ctx context.Context, params ReviewRejectedPa
 	return debtFromSQLC(debt), nil
 }
 
-func (r *Repository) ListForUser(ctx context.Context, userID string) ([]Debt, error) {
-	userUUID, err := parseUUID(userID)
+func (r *Repository) ListForUser(ctx context.Context, filters ListFilters) ([]ListItem, error) {
+	userUUID, err := parseUUID(filters.UserID)
 	if err != nil {
 		return nil, ErrInvalidUserID
 	}
 
-	rows, err := r.queries.ListDebtsForUser(ctx, userUUID)
+	rows, err := r.queries.ListDebtsForUser(ctx, sqlc.ListDebtsForUserParams{
+		DebtorID: userUUID,
+		Status: pgtype.Text{
+			String: stringValue(filters.Status),
+			Valid:  filters.Status != nil,
+		},
+		BalanceType: pgtype.Text{
+			String: stringValue(filters.BalanceType),
+			Valid:  filters.BalanceType != nil,
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	debts := make([]Debt, 0, len(rows))
+	debts := make([]ListItem, 0, len(rows))
 	for _, row := range rows {
-		debts = append(debts, debtFromSQLC(row))
+		debts = append(debts, debtListItemFromSQLC(row))
 	}
 
 	return debts, nil
@@ -168,6 +178,35 @@ func debtFromSQLC(debt sqlc.Debt) Debt {
 		CreatedAt:            debt.CreatedAt.Time,
 		UpdatedAt:            debt.UpdatedAt.Time,
 	}
+}
+
+func debtListItemFromSQLC(row sqlc.ListDebtsForUserRow) ListItem {
+	return ListItem{
+		Debt: Debt{
+			ID:                   formatUUID(row.ID),
+			ExpenseID:            formatUUID(row.ExpenseID),
+			DebtorID:             formatUUID(row.DebtorID),
+			CreditorID:           formatUUID(row.CreditorID),
+			OriginalAmountMinor:  row.OriginalAmountMinor,
+			RemainingAmountMinor: row.RemainingAmountMinor,
+			Status:               row.Status,
+			AcceptedAt:           timestamptzPtr(row.AcceptedAt),
+			RejectedAt:           timestamptzPtr(row.RejectedAt),
+			SettledAt:            timestamptzPtr(row.SettledAt),
+			CreatedAt:            row.CreatedAt.Time,
+			UpdatedAt:            row.UpdatedAt.Time,
+		},
+		ExpenseTitle: row.ExpenseTitle,
+		DebtorName:   row.DebtorName,
+		CreditorName: row.CreditorName,
+	}
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func parseUUID(value string) (pgtype.UUID, error) {

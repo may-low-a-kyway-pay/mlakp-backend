@@ -62,8 +62,11 @@ type expenseParticipantResponse struct {
 type debtResponse struct {
 	ID                   string  `json:"id"`
 	ExpenseID            string  `json:"expense_id"`
+	ExpenseTitle         *string `json:"expense_title,omitempty"`
 	DebtorID             string  `json:"debtor_id"`
+	DebtorName           *string `json:"debtor_name,omitempty"`
 	CreditorID           string  `json:"creditor_id"`
+	CreditorName         *string `json:"creditor_name,omitempty"`
 	OriginalAmount       string  `json:"original_amount"`
 	OriginalAmountMinor  int64   `json:"original_amount_minor"`
 	RemainingAmount      string  `json:"remaining_amount"`

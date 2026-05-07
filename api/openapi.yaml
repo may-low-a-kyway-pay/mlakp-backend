@@ -826,9 +826,30 @@ paths:
       tags:
         - Debts
       summary: List current-user debts
-      description: Lists debts where the authenticated user is either debtor or creditor.
+      description: Lists debts where the authenticated user is either debtor or creditor. Optional filters can narrow the list by debt status and whether the user owes or receives the balance.
       security:
         - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending
+              - accepted
+              - rejected
+              - partially_settled
+              - settled
+        - name: type
+          in: query
+          required: false
+          description: Use `owed` for records where the current user is debtor, or `receivable` for records where the current user is creditor.
+          schema:
+            type: string
+            enum:
+              - owed
+              - receivable
       responses:
         "200":
           description: Current-user debts.
@@ -836,6 +857,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DebtsResponse"
+        "400":
+          description: Invalid status or type filter.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid_debt_status:
+                  value:
+                    success: false
+                    error:
+                      code: invalid_debt_status
+                      message: Debt status filter is invalid
+                invalid_debt_type:
+                  value:
+                    success: false
+                    error:
+                      code: invalid_debt_type
+                      message: Debt type filter must be owed or receivable
         "401":
           $ref: "#/components/responses/Unauthorized"
         "500":
@@ -1948,12 +1988,18 @@ components:
         expense_id:
           type: string
           format: uuid
+        expense_title:
+          type: string
         debtor_id:
           type: string
           format: uuid
+        debtor_name:
+          type: string
         creditor_id:
           type: string
           format: uuid
+        creditor_name:
+          type: string
         original_amount:
           type: string
         original_amount_minor:
