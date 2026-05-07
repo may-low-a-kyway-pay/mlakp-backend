@@ -201,9 +201,10 @@ func memberFromListRow(member sqlc.ListGroupMembersForUserRow) Member {
 		Role:     member.Role,
 		JoinedAt: member.JoinedAt.Time,
 		User: &MemberUser{
-			ID:    userID,
-			Name:  member.UserName,
-			Email: member.UserEmail,
+			ID:       userID,
+			Name:     member.UserName,
+			Username: member.UserUsername,
+			Email:    member.UserEmail,
 		},
 	}
 }

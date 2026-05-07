@@ -32,17 +32,20 @@ The system does **not handle real money transfers**. It only records and tracks 
 
 ### 3.0 Users and Groups
 Users can:
-- Register and log in
+- Register with a unique username and log in
 - Stay signed in through a secure session
 - Log out of their current session
 - View their own profile
+- Update their username, as long as the new username is unique
 - Create groups
 - View groups they belong to
-- Add members to groups they own
+- Search users by username
+- Add members to groups they own by selecting a searched username
 
 Group rules:
 - A group has one creator.
 - The group creator is the initial owner.
+- Usernames are unique and are the product-facing identifier for finding users.
 - A group member can create expenses for that group.
 - Only a group owner can add members.
 - A payer and all participants must be group members for group expenses.

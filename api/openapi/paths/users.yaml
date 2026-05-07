@@ -19,6 +19,7 @@
                   user:
                     id: 3b43c6da-2f6f-4f46-ae15-f2f6a25dfe62
                     name: Thomas
+                    username: thomas
                     email: thomas@example.com
         "401":
           description: Missing, malformed, expired, invalid, or stale access token.
@@ -53,3 +54,77 @@
                       message: Access token user no longer exists
         "500":
           $ref: "#/components/responses/InternalError"
+    patch:
+      tags:
+        - Users
+      summary: Update current authenticated user
+      operationId: updateCurrentUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+            example:
+              username: thomas_new
+      responses:
+        "200":
+          description: Updated current user profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "400":
+          description: Invalid username.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing, malformed, expired, invalid, or stale access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Username is already registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/users/search:
+    get:
+      tags:
+        - Users
+      summary: Search users by username prefix
+      operationId: searchUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: username
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            pattern: "^[a-z0-9_]+$"
+          description: Case-insensitive username prefix using lowercase letters, numbers, or underscores. Returns up to 10 users.
+      responses:
+        "200":
+          description: Matching users.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSearchResponse"
+        "401":
+          description: Missing, malformed, expired, invalid, or stale access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"

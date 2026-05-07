@@ -1,6 +1,6 @@
 # MLAKP Backend
 
-Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation in local/test mode, rate-limited user registration/login/refresh, strict JSON request decoding, session-backed logout, the authenticated current-user endpoint, authenticated group creation, listing, details, member management, expense creation/detail/listing, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, current-user debt listing, payment marking/review, and dashboard snapshots.
+Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation in local/test mode, rate-limited user registration/login/refresh, strict JSON request decoding, session-backed logout, authenticated current-user/profile update endpoints, username search, authenticated group creation, listing, details, member management by username, expense creation/detail/listing, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, current-user debt listing, payment marking/review, and dashboard snapshots.
 
 ## Requirements
 
@@ -173,6 +173,13 @@ The fifth migration creates:
 - payment amount and payer/receiver integrity constraints
 - indexes for debt, payer, and receiver payment lookups
 
+The sixth migration adds:
+
+- `users.username` column
+- lowercase username and format constraints
+- username uniqueness constraint
+- username prefix-search index
+
 To roll back one migration:
 
 ```sh
@@ -246,6 +253,7 @@ curl -s -X POST http://localhost:8080/v1/auth/register \
   -H 'Content-Type: application/json' \
   -d '{
     "name": "Thomas",
+    "username": "thomas",
     "email": "thomas@example.com",
     "password": "password123"
   }'
@@ -318,7 +326,14 @@ curl -s http://localhost:8080/v1/groups/$GROUP_ID \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-The group detail response includes each member's `user_id`, role, join time, and `user` profile summary. Mobile clients use that member list to select expense participants.
+The group detail response includes each member's `user_id`, role, join time, and `user` profile summary including username. Mobile clients use that member list to select expense participants.
+
+Search users by username prefix:
+
+```sh
+curl -s "http://localhost:8080/v1/users/search?username=ali" \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 Add a member as the group owner:
 
@@ -326,7 +341,7 @@ Add a member as the group owner:
 curl -s -X POST http://localhost:8080/v1/groups/$GROUP_ID/members \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"user_id":"USER_ID_TO_ADD"}'
+  -d '{"username":"alice"}'
 ```
 
 Create an expense:

@@ -109,7 +109,7 @@ func (q *Queries) IsGroupOwner(ctx context.Context, arg IsGroupOwnerParams) (boo
 }
 
 const listGroupMembersForUser = `-- name: ListGroupMembersForUser :many
-SELECT gm.id, gm.group_id, gm.user_id, gm.role, gm.joined_at, u.name AS user_name, u.email AS user_email
+SELECT gm.id, gm.group_id, gm.user_id, gm.role, gm.joined_at, u.name AS user_name, u.username AS user_username, u.email AS user_email
 FROM group_members gm
 JOIN users u ON u.id = gm.user_id
 JOIN group_members viewer ON viewer.group_id = gm.group_id
@@ -124,13 +124,14 @@ type ListGroupMembersForUserParams struct {
 }
 
 type ListGroupMembersForUserRow struct {
-	ID        pgtype.UUID
-	GroupID   pgtype.UUID
-	UserID    pgtype.UUID
-	Role      string
-	JoinedAt  pgtype.Timestamptz
-	UserName  string
-	UserEmail string
+	ID           pgtype.UUID
+	GroupID      pgtype.UUID
+	UserID       pgtype.UUID
+	Role         string
+	JoinedAt     pgtype.Timestamptz
+	UserName     string
+	UserUsername string
+	UserEmail    string
 }
 
 func (q *Queries) ListGroupMembersForUser(ctx context.Context, arg ListGroupMembersForUserParams) ([]ListGroupMembersForUserRow, error) {
@@ -149,6 +150,7 @@ func (q *Queries) ListGroupMembersForUser(ctx context.Context, arg ListGroupMemb
 			&i.Role,
 			&i.JoinedAt,
 			&i.UserName,
+			&i.UserUsername,
 			&i.UserEmail,
 		); err != nil {
 			return nil, err

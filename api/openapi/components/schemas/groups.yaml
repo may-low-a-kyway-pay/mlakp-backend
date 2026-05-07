@@ -12,11 +12,13 @@
       type: object
       additionalProperties: false
       required:
-        - user_id
+        - username
       properties:
-        user_id:
+        username:
           type: string
-          format: uuid
+          minLength: 3
+          maxLength: 30
+          pattern: "^[a-z0-9_]+$"
     GroupResponse:
       type: object
       additionalProperties: false
@@ -161,12 +163,15 @@
       required:
         - id
         - name
+        - username
         - email
       properties:
         id:
           type: string
           format: uuid
         name:
+          type: string
+        username:
           type: string
         email:
           type: string

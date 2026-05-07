@@ -169,7 +169,7 @@
             schema:
               $ref: "#/components/schemas/AddGroupMemberRequest"
             example:
-              user_id: 755a01f4-fc4e-483f-9d39-d8dccb7d77c0
+              username: alice
       responses:
         "201":
           description: Member added to the group.
@@ -187,7 +187,7 @@
                     role: member
                     joined_at: "2026-05-03T10:20:00Z"
         "400":
-          description: Invalid JSON, group ID, or user ID.
+          description: Invalid JSON, group ID, or username.
           content:
             application/json:
               schema:

@@ -23,6 +23,7 @@
       required:
         - id
         - name
+        - username
         - email
       properties:
         id:
@@ -32,6 +33,43 @@
           type: string
           minLength: 1
           maxLength: 120
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: "^[a-z0-9_]+$"
         email:
           type: string
           format: email
+    UpdateUserRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - username
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: "^[a-z0-9_]+$"
+    UserSearchResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - users
+          properties:
+            users:
+              type: array
+              items:
+                $ref: "#/components/schemas/User"

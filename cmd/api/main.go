@@ -70,7 +70,7 @@ func main() {
 		Handler: app.NewRouter(logger, app.RouterDeps{
 			AuthHandler:      handlers.NewAuthHandler(userService, tokenManager, sessionService),
 			UserHandler:      handlers.NewUserHandler(userService),
-			GroupHandler:     handlers.NewGroupHandler(groupService),
+			GroupHandler:     handlers.NewGroupHandler(groupService, userService),
 			ExpenseHandler:   handlers.NewExpenseHandler(expenseService),
 			DebtHandler:      handlers.NewDebtHandler(debtService),
 			PaymentHandler:   handlers.NewPaymentHandler(paymentService),
