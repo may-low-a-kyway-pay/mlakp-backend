@@ -24,6 +24,7 @@ type Config struct {
 	TokenIssuer     string
 	TokenAudience   string
 	TokenSecret     string
+	CORSOrigins     []string
 	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
 	ReadTimeout     time.Duration
@@ -42,6 +43,8 @@ func Load() (Config, error) {
 	cfg.TokenIssuer = strings.TrimSpace(os.Getenv("TOKEN_ISSUER"))
 	cfg.TokenAudience = strings.TrimSpace(os.Getenv("TOKEN_AUDIENCE"))
 	cfg.TokenSecret = os.Getenv("TOKEN_SECRET")
+	// CORS uses exact browser origins such as "http://localhost:8081"; paths are rejected below.
+	cfg.CORSOrigins = parseCSV(os.Getenv("CORS_ALLOWED_ORIGINS"))
 
 	if cfg.AppEnv == "" {
 		errs = append(errs, errors.New("APP_ENV is required"))
@@ -73,6 +76,11 @@ func Load() (Config, error) {
 		// Local/test secrets can be short, but production HMAC keys need real entropy.
 		errs = append(errs, errors.New("TOKEN_SECRET must be at least 32 bytes in production"))
 	}
+	for _, origin := range cfg.CORSOrigins {
+		if err := validateOrigin(origin); err != nil {
+			errs = append(errs, fmt.Errorf("CORS_ALLOWED_ORIGINS contains invalid origin %q: %w", origin, err))
+		}
+	}
 
 	parseDuration := func(name string) time.Duration {
 		value := strings.TrimSpace(os.Getenv(name))
@@ -102,6 +110,19 @@ func Load() (Config, error) {
 	cfg.ShutdownTimeout = parseDuration("SHUTDOWN_TIMEOUT")
 
 	return cfg, errors.Join(errs...)
+}
+
+func parseCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			values = append(values, trimmed)
+		}
+	}
+
+	return values
 }
 
 func validAppEnv(value string) bool {
@@ -143,6 +164,27 @@ func validateDatabaseURL(value string) error {
 	}
 	if strings.TrimPrefix(parsed.Path, "/") == "" {
 		return fmt.Errorf("database name is required")
+	}
+
+	return nil
+}
+
+func validateOrigin(value string) error {
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return err
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("scheme must be http or https")
+	}
+	if parsed.Host == "" {
+		return fmt.Errorf("host is required")
+	}
+	if parsed.Path != "" && parsed.Path != "/" {
+		return fmt.Errorf("path is not allowed")
+	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" {
+		return fmt.Errorf("query and fragment are not allowed")
 	}
 
 	return nil

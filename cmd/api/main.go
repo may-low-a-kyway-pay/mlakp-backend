@@ -78,6 +78,7 @@ func main() {
 			TokenManager:     tokenManager,
 			SessionService:   sessionService,
 			AppEnv:           cfg.AppEnv,
+			CORSOrigins:      cfg.CORSOrigins,
 			ReadinessChecker: dbPool,
 		}),
 		ReadTimeout:  cfg.ReadTimeout,

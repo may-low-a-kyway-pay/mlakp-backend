@@ -113,7 +113,7 @@ func (r *Repository) GetForUser(ctx context.Context, groupID, userID string) (Gr
 
 	members := make([]Member, 0, len(memberRows))
 	for _, row := range memberRows {
-		members = append(members, memberFromSQLC(row))
+		members = append(members, memberFromListRow(row))
 	}
 
 	return GroupDetails{
@@ -188,6 +188,23 @@ func memberFromSQLC(member sqlc.GroupMember) Member {
 		UserID:   formatUUID(member.UserID),
 		Role:     member.Role,
 		JoinedAt: member.JoinedAt.Time,
+	}
+}
+
+func memberFromListRow(member sqlc.ListGroupMembersForUserRow) Member {
+	userID := formatUUID(member.UserID)
+
+	return Member{
+		ID:       formatUUID(member.ID),
+		GroupID:  formatUUID(member.GroupID),
+		UserID:   userID,
+		Role:     member.Role,
+		JoinedAt: member.JoinedAt.Time,
+		User: &MemberUser{
+			ID:    userID,
+			Name:  member.UserName,
+			Email: member.UserEmail,
+		},
 	}
 }
 

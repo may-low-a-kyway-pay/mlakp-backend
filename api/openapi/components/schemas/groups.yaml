@@ -153,3 +153,21 @@
         joined_at:
           type: string
           format: date-time
+        user:
+          $ref: "#/components/schemas/GroupMemberUser"
+    GroupMemberUser:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - email
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email

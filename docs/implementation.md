@@ -707,7 +707,7 @@ Dashboard totals include only valid debts:
 Views:
 - `you_owe`: debts where current user is debtor.
 - `you_get`: debts where current user is creditor.
-- `unsettled_balances`: up to five most recently updated active debts involving the current user, with the source expense title, counterparty user, remaining amount, status, and whether the balance is `owed` or `receivable`.
+- `unsettled_balances`: up to five most recently updated pending or active debts involving the current user where `remaining_amount_minor > 0`, with the source expense title, counterparty user, remaining amount, status, and whether the balance is `owed` or `receivable`.
 
 ---
 
@@ -737,6 +737,7 @@ DATABASE_URL=postgres://...
 TOKEN_ISSUER=mlakp-backend
 TOKEN_AUDIENCE=mlakp-api
 TOKEN_SECRET=...
+CORS_ALLOWED_ORIGINS=http://localhost:8081,http://localhost:19006
 ACCESS_TOKEN_TTL=15m
 REFRESH_TOKEN_TTL=720h
 READ_TIMEOUT=5s
@@ -749,6 +750,7 @@ Rules:
 - Do not commit `.env`.
 - Provide `.env.example` only.
 - Validate all configuration at startup.
+- Treat `CORS_ALLOWED_ORIGINS` values as exact browser origins with no paths.
 - Fail fast on missing or invalid production configuration.
 
 ---
