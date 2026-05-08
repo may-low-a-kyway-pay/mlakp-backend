@@ -110,7 +110,7 @@
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "409":
-          description: Debt cannot accept payment or amount exceeds remaining balance.
+          description: Debt cannot accept payment, already has a pending payment, or amount exceeds remaining balance.
           content:
             application/json:
               schema:
@@ -122,6 +122,12 @@
                     error:
                       code: invalid_debt_state
                       message: Debt cannot accept payments in its current state
+                payment_pending_confirmation_exists:
+                  value:
+                    success: false
+                    error:
+                      code: payment_pending_confirmation_exists
+                      message: A payment for this debt is already waiting for creditor review
                 payment_amount_exceeds_remaining:
                   value:
                     success: false

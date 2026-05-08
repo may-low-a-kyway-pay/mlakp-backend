@@ -219,6 +219,7 @@ Future versions may support cancellation or correction flows, but they must pres
 - A debt can have multiple payment records
 - Total confirmed payments must not exceed debt amount
 - Pending payments plus confirmed payments must not exceed remaining debt
+- Debtor cannot submit another payment for the same debt while one is pending creditor confirmation
 - Only debtor can accept/reject debt
 - Only debtor can mark payment
 - Only creditor can confirm/reject payment

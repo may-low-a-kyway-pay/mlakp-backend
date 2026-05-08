@@ -380,12 +380,13 @@ Concurrency rules:
 - Confirm payment and update debt in one transaction.
 - Prevent double confirmation of the same payment.
 - Prevent accepting payment for rejected or settled debts.
-- Pending payments plus confirmed payments must not exceed the current `remaining_amount_minor`.
+- Prevent more than one pending payment per debt while preserving historical confirmed/rejected payment records.
+- Confirmed payments must not exceed the current `remaining_amount_minor`.
 - Use conditional updates where possible, e.g. update only when status is expected.
 
 Required behavior:
 - If two requests try to confirm the same payment, only one succeeds.
-- If two pending payments would exceed `remaining_amount_minor`, the second operation must fail.
+- If two requests try to mark payment for the same debt while no payment is pending, only one pending payment is created.
 
 ---
 
@@ -682,6 +683,7 @@ Rules:
 - Only debtor.
 - Debt must be `accepted` or `partially_settled`.
 - Amount must be positive.
+- Debt must not already have a `pending_confirmation` payment.
 - Amount must not exceed available `remaining_amount_minor` after considering pending payments.
 - Create payment with `pending_confirmation`.
 

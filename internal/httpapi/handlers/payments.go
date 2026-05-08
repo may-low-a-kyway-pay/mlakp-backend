@@ -161,6 +161,8 @@ func writePaymentError(w http.ResponseWriter, err error) {
 		response.Error(w, http.StatusBadRequest, "invalid_payment_status", "Payment status filter is invalid")
 	case errors.Is(err, payments.ErrInvalidType):
 		response.Error(w, http.StatusBadRequest, "invalid_payment_type", "Payment type filter must be received, sent, or all")
+	case errors.Is(err, payments.ErrPendingPaymentExists):
+		response.Error(w, http.StatusConflict, "payment_pending_confirmation_exists", "A payment for this debt is already waiting for creditor review")
 	case errors.Is(err, payments.ErrAmountExceedsRemaining):
 		response.Error(w, http.StatusConflict, "payment_amount_exceeds_remaining", "Payment amount exceeds remaining debt amount")
 	default:

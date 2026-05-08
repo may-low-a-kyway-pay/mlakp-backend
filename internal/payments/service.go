@@ -20,6 +20,7 @@ var (
 	ErrInvalidReviewType      = errors.New("payment review type is invalid")
 	ErrInvalidStatus          = errors.New("payment status is invalid")
 	ErrInvalidType            = errors.New("payment type is invalid")
+	ErrPendingPaymentExists   = errors.New("pending payment already exists for debt")
 	ErrAmountExceedsRemaining = errors.New("payment amount exceeds remaining debt amount")
 )
 

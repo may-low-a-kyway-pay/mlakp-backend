@@ -76,7 +76,7 @@ func TestRepositoryConfirmConcurrentPayments(t *testing.T) {
 	}
 }
 
-func TestRepositoryMarkConcurrentPaymentsRespectsPendingAmount(t *testing.T) {
+func TestRepositoryMarkConcurrentPaymentsAllowsOnlyOnePendingPayment(t *testing.T) {
 	pool := newIntegrationPool(t)
 	repository := NewRepository(pool, sqlc.New(pool))
 	fixture := seedAcceptedDebt(t, pool, 1000)
@@ -112,15 +112,15 @@ func TestRepositoryMarkConcurrentPaymentsRespectsPendingAmount(t *testing.T) {
 			if result.payment.Status != StatusPendingConfirmation {
 				t.Fatalf("marked payment status = %q, want %q", result.payment.Status, StatusPendingConfirmation)
 			}
-		case errors.Is(result.err, ErrAmountExceedsRemaining):
+		case errors.Is(result.err, ErrPendingPaymentExists):
 			exceeded++
 		default:
-			t.Fatalf("Mark() error = %v, want nil or %v", result.err, ErrAmountExceedsRemaining)
+			t.Fatalf("Mark() error = %v, want nil or %v", result.err, ErrPendingPaymentExists)
 		}
 	}
 
 	if marked != 1 || exceeded != 1 {
-		t.Fatalf("marked=%d exceeded=%d, want marked=1 exceeded=1", marked, exceeded)
+		t.Fatalf("marked=%d pending_exists=%d, want marked=1 pending_exists=1", marked, exceeded)
 	}
 
 	var pendingTotal int64
