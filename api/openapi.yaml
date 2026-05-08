@@ -1064,6 +1064,64 @@ paths:
           $ref: "#/components/responses/RequestBodyTooLarge"
         "500":
           $ref: "#/components/responses/InternalError"
+  /v1/payments:
+    get:
+      tags:
+        - Payments
+      summary: List current-user payments
+      description: Lists payments involving the authenticated user. Use `type=received&status=pending_confirmation` as the creditor review inbox.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: false
+          description: Use `received` for payments awaiting or completed by the current user as creditor, `sent` for payments submitted by the current user, or `all` to include both directions.
+          schema:
+            type: string
+            enum:
+              - received
+              - sent
+              - all
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending_confirmation
+              - confirmed
+              - rejected
+      responses:
+        "200":
+          description: Current-user payments.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentsResponse"
+        "400":
+          description: Invalid payment type or status filter.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid_payment_type:
+                  value:
+                    success: false
+                    error:
+                      code: invalid_payment_type
+                      message: Payment type filter must be received, sent, or all
+                invalid_payment_status:
+                  value:
+                    success: false
+                    error:
+                      code: invalid_payment_status
+                      message: Payment status filter is invalid
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
   /v1/debts/{debtID}/payments:
     post:
       tags:
@@ -2174,6 +2232,40 @@ components:
         updated_at:
           type: string
           format: date-time
+    PaymentListItem:
+      allOf:
+        - $ref: "#/components/schemas/Payment"
+        - type: object
+          additionalProperties: false
+          required:
+            - expense_id
+            - expense_title
+            - paid_by_name
+            - received_by_name
+            - debt_remaining_amount
+            - debt_remaining_amount_minor
+            - debt_status
+          properties:
+            expense_id:
+              type: string
+              format: uuid
+            expense_title:
+              type: string
+            paid_by_name:
+              type: string
+            received_by_name:
+              type: string
+            debt_remaining_amount:
+              type: string
+            debt_remaining_amount_minor:
+              type: integer
+              format: int64
+            debt_status:
+              type: string
+              enum:
+                - accepted
+                - partially_settled
+                - settled
     PaymentResponse:
       type: object
       additionalProperties: false
@@ -2193,6 +2285,27 @@ components:
           properties:
             payment:
               $ref: "#/components/schemas/Payment"
+    PaymentsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - payments
+          properties:
+            payments:
+              type: array
+              items:
+                $ref: "#/components/schemas/PaymentListItem"
     DashboardAmount:
       type: object
       additionalProperties: false

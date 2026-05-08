@@ -18,11 +18,14 @@ var (
 	ErrInvalidDebtState       = errors.New("debt state is invalid for payment")
 	ErrInvalidPaymentState    = errors.New("payment state transition is invalid")
 	ErrInvalidReviewType      = errors.New("payment review type is invalid")
+	ErrInvalidStatus          = errors.New("payment status is invalid")
+	ErrInvalidType            = errors.New("payment type is invalid")
 	ErrAmountExceedsRemaining = errors.New("payment amount exceeds remaining debt amount")
 )
 
 type Store interface {
 	Mark(ctx context.Context, params markParams) (Payment, error)
+	ListForUser(ctx context.Context, filters ListFilters) ([]ListItem, error)
 	Confirm(ctx context.Context, paymentID, userID string) (Payment, error)
 	Reject(ctx context.Context, paymentID, userID string) (Payment, error)
 }
@@ -42,6 +45,15 @@ func (s *Service) Mark(ctx context.Context, input MarkInput) (Payment, error) {
 	}
 
 	return s.store.Mark(ctx, params)
+}
+
+func (s *Service) List(ctx context.Context, input ListInput) ([]ListItem, error) {
+	filters, err := validateListInput(input)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.store.ListForUser(ctx, filters)
 }
 
 func (s *Service) Confirm(ctx context.Context, input ReviewInput) (Payment, error) {
@@ -76,6 +88,34 @@ func (s *Service) Review(ctx context.Context, input ReviewInput) (Payment, error
 	default:
 		return Payment{}, ErrInvalidReviewType
 	}
+}
+
+func validateListInput(input ListInput) (ListFilters, error) {
+	userID := strings.TrimSpace(input.UserID)
+	if userID == "" {
+		return ListFilters{}, ErrInvalidUserID
+	}
+
+	filters := ListFilters{UserID: userID}
+	if status := strings.TrimSpace(input.Status); status != "" {
+		switch status {
+		case StatusPendingConfirmation, StatusConfirmed, StatusRejected:
+			filters.Status = &status
+		default:
+			return ListFilters{}, ErrInvalidStatus
+		}
+	}
+
+	if paymentType := strings.TrimSpace(input.Type); paymentType != "" && paymentType != TypeAll {
+		switch paymentType {
+		case TypeReceived, TypeSent:
+			filters.Type = &paymentType
+		default:
+			return ListFilters{}, ErrInvalidType
+		}
+	}
+
+	return filters, nil
 }
 
 func validateMarkInput(input MarkInput) (markParams, error) {

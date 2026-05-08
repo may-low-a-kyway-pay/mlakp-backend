@@ -19,6 +19,44 @@ INSERT INTO payments (debt_id, paid_by, received_by, amount_minor, note)
 VALUES ($1, $2, $3, $4, $5)
 RETURNING id, debt_id, paid_by, received_by, amount_minor, status, note, confirmed_at, rejected_at, created_at, updated_at;
 
+-- name: ListPaymentsForUser :many
+SELECT
+    p.id,
+    p.debt_id,
+    p.paid_by,
+    payer.name AS paid_by_name,
+    p.received_by,
+    receiver.name AS received_by_name,
+    p.amount_minor,
+    p.status,
+    p.note,
+    p.confirmed_at,
+    p.rejected_at,
+    p.created_at,
+    p.updated_at,
+    d.expense_id,
+    e.title AS expense_title,
+    d.remaining_amount_minor AS debt_remaining_amount_minor,
+    d.status AS debt_status
+FROM payments p
+JOIN debts d ON d.id = p.debt_id
+JOIN expenses e ON e.id = d.expense_id
+JOIN users payer ON payer.id = p.paid_by
+JOIN users receiver ON receiver.id = p.received_by
+WHERE (p.paid_by = $1 OR p.received_by = $1)
+  AND (sqlc.narg(status)::text IS NULL OR p.status = sqlc.narg(status)::text)
+  AND (
+      sqlc.narg(payment_type)::text IS NULL
+      OR (sqlc.narg(payment_type)::text = 'sent' AND p.paid_by = $1)
+      OR (sqlc.narg(payment_type)::text = 'received' AND p.received_by = $1)
+  )
+-- Creditor-side pending payments are review tasks, so keep them at the top of the inbox.
+ORDER BY
+    CASE WHEN p.status = 'pending_confirmation' AND p.received_by = $1 THEN 0 ELSE 1 END,
+    p.updated_at DESC,
+    p.created_at DESC,
+    p.id DESC;
+
 -- name: GetPaymentWithDebtForUpdate :one
 SELECT p.id,
        p.debt_id,

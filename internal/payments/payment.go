@@ -7,6 +7,10 @@ const (
 	StatusConfirmed           = "confirmed"
 	StatusRejected            = "rejected"
 
+	TypeReceived = "received"
+	TypeSent     = "sent"
+	TypeAll      = "all"
+
 	ReviewTypeConfirm = "confirm"
 	ReviewTypeReject  = "reject"
 
@@ -28,6 +32,16 @@ type Payment struct {
 	UpdatedAt   time.Time
 }
 
+type ListItem struct {
+	Payment
+	ExpenseID                string
+	ExpenseTitle             string
+	PaidByName               string
+	ReceivedByName           string
+	DebtRemainingAmountMinor int64
+	DebtStatus               string
+}
+
 type MarkInput struct {
 	DebtID string
 	UserID string
@@ -40,6 +54,18 @@ type markParams struct {
 	UserID      string
 	AmountMinor int64
 	Note        *string
+}
+
+type ListInput struct {
+	UserID string
+	Status string
+	Type   string
+}
+
+type ListFilters struct {
+	UserID string
+	Status *string
+	Type   *string
 }
 
 type ReviewInput struct {

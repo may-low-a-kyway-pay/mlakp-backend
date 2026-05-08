@@ -84,6 +84,7 @@ func NewRouter(logger *slog.Logger, deps RouterDeps) http.Handler {
 	}
 	if deps.PaymentHandler != nil && deps.TokenManager != nil {
 		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
+		mux.Handle("GET /v1/payments", authenticated(http.HandlerFunc(deps.PaymentHandler.List)))
 		mux.Handle("POST /v1/debts/{debtID}/payments", authenticated(http.HandlerFunc(deps.PaymentHandler.Mark)))
 		mux.Handle("POST /v1/payments/{paymentID}", authenticated(http.HandlerFunc(deps.PaymentHandler.Update)))
 	}
