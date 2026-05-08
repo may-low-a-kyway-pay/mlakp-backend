@@ -38,8 +38,46 @@ type paymentResponse struct {
 	UpdatedAt   string  `json:"updated_at"`
 }
 
+type paymentListItemResponse struct {
+	paymentResponse
+	ExpenseID                string `json:"expense_id"`
+	ExpenseTitle             string `json:"expense_title"`
+	PaidByName               string `json:"paid_by_name"`
+	ReceivedByName           string `json:"received_by_name"`
+	DebtRemainingAmount      string `json:"debt_remaining_amount"`
+	DebtRemainingAmountMinor int64  `json:"debt_remaining_amount_minor"`
+	DebtStatus               string `json:"debt_status"`
+}
+
 func NewPaymentHandler(payments *payments.Service) *PaymentHandler {
 	return &PaymentHandler{payments: payments}
+}
+
+func (h *PaymentHandler) List(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+		return
+	}
+
+	paymentList, err := h.payments.List(r.Context(), payments.ListInput{
+		UserID: userID,
+		Status: r.URL.Query().Get("status"),
+		Type:   r.URL.Query().Get("type"),
+	})
+	if err != nil {
+		writePaymentError(w, err)
+		return
+	}
+
+	paymentsResponse := make([]paymentListItemResponse, 0, len(paymentList))
+	for _, payment := range paymentList {
+		paymentsResponse = append(paymentsResponse, toPaymentListItemResponse(payment))
+	}
+
+	response.Success(w, http.StatusOK, map[string][]paymentListItemResponse{
+		"payments": paymentsResponse,
+	})
 }
 
 func (h *PaymentHandler) Mark(w http.ResponseWriter, r *http.Request) {
@@ -119,10 +157,27 @@ func writePaymentError(w http.ResponseWriter, err error) {
 		response.Error(w, http.StatusConflict, "invalid_payment_state", "Payment cannot be updated from its current state")
 	case errors.Is(err, payments.ErrInvalidReviewType):
 		response.Error(w, http.StatusBadRequest, "invalid_payment_review_type", "Payment review type must be confirm or reject")
+	case errors.Is(err, payments.ErrInvalidStatus):
+		response.Error(w, http.StatusBadRequest, "invalid_payment_status", "Payment status filter is invalid")
+	case errors.Is(err, payments.ErrInvalidType):
+		response.Error(w, http.StatusBadRequest, "invalid_payment_type", "Payment type filter must be received, sent, or all")
 	case errors.Is(err, payments.ErrAmountExceedsRemaining):
 		response.Error(w, http.StatusConflict, "payment_amount_exceeds_remaining", "Payment amount exceeds remaining debt amount")
 	default:
 		response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
+	}
+}
+
+func toPaymentListItemResponse(payment payments.ListItem) paymentListItemResponse {
+	return paymentListItemResponse{
+		paymentResponse:          toPaymentResponse(payment.Payment),
+		ExpenseID:                payment.ExpenseID,
+		ExpenseTitle:             payment.ExpenseTitle,
+		PaidByName:               payment.PaidByName,
+		ReceivedByName:           payment.ReceivedByName,
+		DebtRemainingAmount:      money.FormatMinor(payment.DebtRemainingAmountMinor),
+		DebtRemainingAmountMinor: payment.DebtRemainingAmountMinor,
+		DebtStatus:               payment.DebtStatus,
 	}
 }
 

@@ -143,8 +143,11 @@ Status: Pending Confirmation
 
 Creditor can:
 
+- List received payments that are pending confirmation
 - Confirm → update debt (partial or full settlement)
 - Reject → no change to debt
+
+Debtor can list submitted payments to see whether they are pending, confirmed, or rejected.
 
 ---
 

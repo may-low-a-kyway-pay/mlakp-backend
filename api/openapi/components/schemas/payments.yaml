@@ -76,6 +76,40 @@
         updated_at:
           type: string
           format: date-time
+    PaymentListItem:
+      allOf:
+        - $ref: "#/components/schemas/Payment"
+        - type: object
+          additionalProperties: false
+          required:
+            - expense_id
+            - expense_title
+            - paid_by_name
+            - received_by_name
+            - debt_remaining_amount
+            - debt_remaining_amount_minor
+            - debt_status
+          properties:
+            expense_id:
+              type: string
+              format: uuid
+            expense_title:
+              type: string
+            paid_by_name:
+              type: string
+            received_by_name:
+              type: string
+            debt_remaining_amount:
+              type: string
+            debt_remaining_amount_minor:
+              type: integer
+              format: int64
+            debt_status:
+              type: string
+              enum:
+                - accepted
+                - partially_settled
+                - settled
     PaymentResponse:
       type: object
       additionalProperties: false
@@ -95,3 +129,24 @@
           properties:
             payment:
               $ref: "#/components/schemas/Payment"
+    PaymentsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - payments
+          properties:
+            payments:
+              type: array
+              items:
+                $ref: "#/components/schemas/PaymentListItem"

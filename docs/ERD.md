@@ -289,6 +289,7 @@ Application rules:
 - `received_by` must equal the debt creditor.
 - Payment status changes must follow the payment state machine in the implementation guide.
 - Pending plus confirmed payments must not exceed the debt's current `remaining_amount_minor`.
+- Users may list only payments where they are `paid_by` or `received_by`.
 
 ---
 

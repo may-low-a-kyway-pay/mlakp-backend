@@ -56,6 +56,45 @@ func TestServiceMarkTrimsAndParsesInput(t *testing.T) {
 	}
 }
 
+func TestServiceListValidatesAndTrimsInput(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      ListInput
+		wantErr    error
+		wantStatus *string
+		wantType   *string
+	}{
+		{name: "missing user", input: ListInput{UserID: " "}, wantErr: ErrInvalidUserID},
+		{name: "invalid status", input: ListInput{UserID: "user-1", Status: "paid"}, wantErr: ErrInvalidStatus},
+		{name: "invalid type", input: ListInput{UserID: "user-1", Type: "mine"}, wantErr: ErrInvalidType},
+		{name: "all type omitted", input: ListInput{UserID: " user-1 ", Type: " all "}},
+		{name: "valid filters", input: ListInput{UserID: " user-1 ", Status: " pending_confirmation ", Type: " received "}, wantStatus: stringPtr("pending_confirmation"), wantType: stringPtr("received")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &fakeStore{}
+			service := NewService(store)
+			_, err := service.List(context.Background(), tt.input)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("List() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr != nil {
+				return
+			}
+			if store.listFilters.UserID != "user-1" {
+				t.Fatalf("UserID = %q, want user-1", store.listFilters.UserID)
+			}
+			if !equalStringPtr(store.listFilters.Status, tt.wantStatus) {
+				t.Fatalf("Status = %v, want %v", store.listFilters.Status, tt.wantStatus)
+			}
+			if !equalStringPtr(store.listFilters.Type, tt.wantType) {
+				t.Fatalf("Type = %v, want %v", store.listFilters.Type, tt.wantType)
+			}
+		})
+	}
+}
+
 func TestServiceReviewValidatesInput(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -112,15 +151,21 @@ func TestServiceReviewDispatchesByType(t *testing.T) {
 }
 
 type fakeStore struct {
-	markParams markParams
-	paymentID  string
-	userID     string
-	call       string
+	markParams  markParams
+	listFilters ListFilters
+	paymentID   string
+	userID      string
+	call        string
 }
 
 func (s *fakeStore) Mark(_ context.Context, params markParams) (Payment, error) {
 	s.markParams = params
 	return Payment{}, nil
+}
+
+func (s *fakeStore) ListForUser(_ context.Context, filters ListFilters) ([]ListItem, error) {
+	s.listFilters = filters
+	return nil, nil
 }
 
 func (s *fakeStore) Confirm(_ context.Context, paymentID, userID string) (Payment, error) {
@@ -135,4 +180,15 @@ func (s *fakeStore) Reject(_ context.Context, paymentID, userID string) (Payment
 	s.userID = userID
 	s.call = ReviewTypeReject
 	return Payment{}, nil
+}
+
+func stringPtr(value string) *string {
+	return &value
+}
+
+func equalStringPtr(first, second *string) bool {
+	if first == nil || second == nil {
+		return first == second
+	}
+	return *first == *second
 }

@@ -74,6 +74,29 @@ func (r *Repository) Mark(ctx context.Context, params markParams) (Payment, erro
 	return paymentFromSQLC(payment), nil
 }
 
+func (r *Repository) ListForUser(ctx context.Context, filters ListFilters) ([]ListItem, error) {
+	userUUID, err := parseUUID(filters.UserID)
+	if err != nil {
+		return nil, ErrInvalidUserID
+	}
+
+	rows, err := r.queries.ListPaymentsForUser(ctx, sqlc.ListPaymentsForUserParams{
+		PaidBy:      userUUID,
+		Status:      nullableText(filters.Status),
+		PaymentType: nullableText(filters.Type),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	payments := make([]ListItem, 0, len(rows))
+	for _, row := range rows {
+		payments = append(payments, paymentListItemFromSQLC(row))
+	}
+
+	return payments, nil
+}
+
 func (r *Repository) Confirm(ctx context.Context, paymentID, userID string) (Payment, error) {
 	paymentUUID, userUUID, err := parsePairUUIDs(paymentID, userID, ErrInvalidPaymentID, ErrInvalidUserID)
 	if err != nil {
@@ -186,6 +209,30 @@ func paymentFromSQLC(payment sqlc.Payment) Payment {
 		RejectedAt:  timestamptzPtr(payment.RejectedAt),
 		CreatedAt:   payment.CreatedAt.Time,
 		UpdatedAt:   payment.UpdatedAt.Time,
+	}
+}
+
+func paymentListItemFromSQLC(payment sqlc.ListPaymentsForUserRow) ListItem {
+	return ListItem{
+		Payment: Payment{
+			ID:          formatUUID(payment.ID),
+			DebtID:      formatUUID(payment.DebtID),
+			PaidBy:      formatUUID(payment.PaidBy),
+			ReceivedBy:  formatUUID(payment.ReceivedBy),
+			AmountMinor: payment.AmountMinor,
+			Status:      payment.Status,
+			Note:        textPtr(payment.Note),
+			ConfirmedAt: timestamptzPtr(payment.ConfirmedAt),
+			RejectedAt:  timestamptzPtr(payment.RejectedAt),
+			CreatedAt:   payment.CreatedAt.Time,
+			UpdatedAt:   payment.UpdatedAt.Time,
+		},
+		ExpenseID:                formatUUID(payment.ExpenseID),
+		ExpenseTitle:             payment.ExpenseTitle,
+		PaidByName:               payment.PaidByName,
+		ReceivedByName:           payment.ReceivedByName,
+		DebtRemainingAmountMinor: payment.DebtRemainingAmountMinor,
+		DebtStatus:               payment.DebtStatus,
 	}
 }
 

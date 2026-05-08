@@ -217,6 +217,109 @@ func (q *Queries) GetPaymentWithDebtForUpdate(ctx context.Context, id pgtype.UUI
 	return i, err
 }
 
+const listPaymentsForUser = `-- name: ListPaymentsForUser :many
+SELECT
+    p.id,
+    p.debt_id,
+    p.paid_by,
+    payer.name AS paid_by_name,
+    p.received_by,
+    receiver.name AS received_by_name,
+    p.amount_minor,
+    p.status,
+    p.note,
+    p.confirmed_at,
+    p.rejected_at,
+    p.created_at,
+    p.updated_at,
+    d.expense_id,
+    e.title AS expense_title,
+    d.remaining_amount_minor AS debt_remaining_amount_minor,
+    d.status AS debt_status
+FROM payments p
+JOIN debts d ON d.id = p.debt_id
+JOIN expenses e ON e.id = d.expense_id
+JOIN users payer ON payer.id = p.paid_by
+JOIN users receiver ON receiver.id = p.received_by
+WHERE (p.paid_by = $1 OR p.received_by = $1)
+  AND ($2::text IS NULL OR p.status = $2::text)
+  AND (
+      $3::text IS NULL
+      OR ($3::text = 'sent' AND p.paid_by = $1)
+      OR ($3::text = 'received' AND p.received_by = $1)
+  )
+ORDER BY
+    CASE WHEN p.status = 'pending_confirmation' AND p.received_by = $1 THEN 0 ELSE 1 END,
+    p.updated_at DESC,
+    p.created_at DESC,
+    p.id DESC
+`
+
+type ListPaymentsForUserParams struct {
+	PaidBy      pgtype.UUID
+	Status      pgtype.Text
+	PaymentType pgtype.Text
+}
+
+type ListPaymentsForUserRow struct {
+	ID                       pgtype.UUID
+	DebtID                   pgtype.UUID
+	PaidBy                   pgtype.UUID
+	PaidByName               string
+	ReceivedBy               pgtype.UUID
+	ReceivedByName           string
+	AmountMinor              int64
+	Status                   string
+	Note                     pgtype.Text
+	ConfirmedAt              pgtype.Timestamptz
+	RejectedAt               pgtype.Timestamptz
+	CreatedAt                pgtype.Timestamptz
+	UpdatedAt                pgtype.Timestamptz
+	ExpenseID                pgtype.UUID
+	ExpenseTitle             string
+	DebtRemainingAmountMinor int64
+	DebtStatus               string
+}
+
+// Creditor-side pending payments are review tasks, so keep them at the top of the inbox.
+func (q *Queries) ListPaymentsForUser(ctx context.Context, arg ListPaymentsForUserParams) ([]ListPaymentsForUserRow, error) {
+	rows, err := q.db.Query(ctx, listPaymentsForUser, arg.PaidBy, arg.Status, arg.PaymentType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPaymentsForUserRow
+	for rows.Next() {
+		var i ListPaymentsForUserRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DebtID,
+			&i.PaidBy,
+			&i.PaidByName,
+			&i.ReceivedBy,
+			&i.ReceivedByName,
+			&i.AmountMinor,
+			&i.Status,
+			&i.Note,
+			&i.ConfirmedAt,
+			&i.RejectedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ExpenseID,
+			&i.ExpenseTitle,
+			&i.DebtRemainingAmountMinor,
+			&i.DebtStatus,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const rejectPayment = `-- name: RejectPayment :one
 UPDATE payments
 SET status = 'rejected',

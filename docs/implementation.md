@@ -235,7 +235,7 @@ Implemented:
 - Expense creation with participant rows and generated pending debts.
 - Debt acceptance and rejection by the debtor.
 - Owner review and resend of rejected debts, with optional amount adjustment.
-- Payment marking by debtor and payment review by creditor.
+- Payment listing, marking by debtor, and review by creditor.
 - Expense detail lookup and group expense listing.
 - Current-user debt listing.
 - Dashboard totals for accepted and partially settled debts.
@@ -460,6 +460,7 @@ GET    /v1/debts
 POST   /v1/debts/{debtID}
 POST   /v1/debts/{debtID}/review
 
+GET    /v1/payments
 POST   /v1/debts/{debtID}/payments
 POST   /v1/payments/{paymentID}
 
@@ -683,6 +684,16 @@ Rules:
 - Amount must be positive.
 - Amount must not exceed available `remaining_amount_minor` after considering pending payments.
 - Create payment with `pending_confirmation`.
+
+### List Payments
+
+Rules:
+- Authenticated user must be either `paid_by` or `received_by`.
+- `type=received` returns creditor-side payments.
+- `type=sent` returns debtor-side payments.
+- `type=all` or omitted type returns both directions.
+- Optional `status` filter accepts `pending_confirmation`, `confirmed`, or `rejected`.
+- Response includes payment fields plus expense title, payer name, receiver name, debt status, and current debt remaining amount for inbox display.
 
 ### Review Payment
 
