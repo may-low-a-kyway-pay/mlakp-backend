@@ -484,7 +484,7 @@ internal/groups/                Group domain service and repository
 internal/money/                 Minor-unit money parsing, formatting, and splitting
 internal/expenses/              Expense creation and debt generation
 internal/debts/                 Debt state transitions and rejected-debt review
-internal/payments/              Payment marking and creditor review
+internal/payments/              Payment listing, marking, and creditor review
 internal/dashboard/             Current-user financial summaries
 internal/postgres/              PostgreSQL pool setup
 internal/postgres/sqlc/         Generated sqlc database code

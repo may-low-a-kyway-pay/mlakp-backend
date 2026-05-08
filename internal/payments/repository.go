@@ -52,6 +52,9 @@ func (r *Repository) Mark(ctx context.Context, params markParams) (Payment, erro
 	if !canMarkPaymentForDebt(debt.Status) {
 		return Payment{}, ErrInvalidDebtState
 	}
+	if debt.PendingAmountMinor > 0 {
+		return Payment{}, ErrPendingPaymentExists
+	}
 	if params.AmountMinor > debt.RemainingAmountMinor-debt.PendingAmountMinor {
 		return Payment{}, ErrAmountExceedsRemaining
 	}
