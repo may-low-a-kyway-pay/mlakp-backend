@@ -37,4 +37,5 @@ type PersonBalance struct {
 	OtherUserName        string
 	RemainingAmountMinor int64
 	DebtCount            int64
+	HasPendingPayment    bool
 }

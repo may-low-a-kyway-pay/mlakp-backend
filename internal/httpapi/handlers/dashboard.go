@@ -50,6 +50,7 @@ type personBalanceResponse struct {
 	RemainingAmount string                `json:"remaining_amount"`
 	RemainingMinor  int64                 `json:"remaining_amount_minor"`
 	DebtCount       int64                 `json:"debt_count"`
+	HasPending      bool                  `json:"has_pending_payment"`
 }
 
 func NewDashboardHandler(dashboard *dashboard.Service) *DashboardHandler {
@@ -145,6 +146,7 @@ func toPersonBalanceResponses(balances []dashboard.PersonBalance) []personBalanc
 			RemainingAmount: money.FormatMinor(balance.RemainingAmountMinor),
 			RemainingMinor:  balance.RemainingAmountMinor,
 			DebtCount:       balance.DebtCount,
+			HasPending:      balance.HasPendingPayment,
 		})
 	}
 

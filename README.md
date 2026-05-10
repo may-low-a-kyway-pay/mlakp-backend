@@ -394,7 +394,7 @@ curl -s http://localhost:8080/v1/dashboard \
 
 The payments list returns records where the current user is either payer or receiver. Use `type=received` for the creditor review inbox, `type=sent` for submitted payments, and optional `status=pending_confirmation|confirmed|rejected` for state-specific views. Bulk marking lets the debtor submit one amount to a selected receiver; the backend allocates it across eligible accepted or partially settled debts and returns the created pending payments.
 
-The dashboard response includes `you_owe`, `you_get`, `person_balances`, and an `unsettled_balances` preview with up to five pending or active balances that still have remaining amount. `person_balances` groups active accepted or partially settled balances by counterparty and direction. Each preview item includes the source expense title, counterparty user, remaining amount, status, and whether the current user sees it as `owed` or `receivable`.
+The dashboard response includes `you_owe`, `you_get`, `person_balances`, and an `unsettled_balances` preview with up to five pending or active balances that still have remaining amount. `person_balances` groups active accepted or partially settled balances by counterparty and direction, and `has_pending_payment` tells clients when at least one debt in that person balance already has a payment waiting for creditor review. Each preview item includes the source expense title, counterparty user, remaining amount, status, and whether the current user sees it as `owed` or `receivable`.
 
 Refresh the access token:
 

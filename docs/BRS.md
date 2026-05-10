@@ -130,6 +130,7 @@ If a debtor rejects:
 Debtor can:
 
 - Mark full or partial payment
+- Mark one bulk payment amount to a selected receiver, allocated across eligible accepted or partially settled debts
 
 System creates a payment with:
 
@@ -165,6 +166,7 @@ Dashboard rules:
 - Exclude Pending, Rejected, and Settled debts from total calculations.
 - Use remaining debt amount, not original debt amount.
 - The dashboard can show a small unsettled-balance preview with the counterparty name and source expense title for Pending, Accepted, and Partially Settled debts with remaining balance.
+- The dashboard can show per-person active balances grouped by counterparty and direction, including whether any debt in that person balance already has a payment waiting for creditor review.
 - A separate full balances view can list all current-user debt records with filters for status and owed/receivable direction.
 
 ---
@@ -258,7 +260,7 @@ Debtor Pays → Mark as Paid → Creditor Confirms → Debt Updated
 - Debt tracking
 - Debt acceptance/rejection
 - Current-user debt listing
-- Payment marking **(full/partial)**
+- Payment marking **(full/partial/bulk by receiver)**
 - Payment review
 - Basic dashboard **(You Owe / You Get)**
 

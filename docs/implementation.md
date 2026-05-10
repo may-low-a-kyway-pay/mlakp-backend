@@ -741,7 +741,7 @@ Dashboard totals include only valid debts:
 Views:
 - `you_owe`: debts where current user is debtor.
 - `you_get`: debts where current user is creditor.
-- `person_balances`: accepted and partially settled debts grouped by counterparty and direction so clients can show per-person totals.
+- `person_balances`: accepted and partially settled debts grouped by counterparty and direction so clients can show per-person totals. Each item includes `has_pending_payment` when at least one debt in that person balance already has a payment waiting for creditor review.
 - `unsettled_balances`: up to five most recently updated pending or active debts involving the current user where `remaining_amount_minor > 0`, with the source expense title, counterparty user, remaining amount, status, and whether the balance is `owed` or `receivable`.
 - Full debt history is exposed separately through `GET /v1/debts`; the dashboard intentionally remains a latest-records summary.
 

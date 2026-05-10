@@ -48,7 +48,14 @@ SELECT
     (CASE WHEN d.debtor_id = $1 THEN d.creditor_id ELSE d.debtor_id END)::uuid AS other_user_id,
     (CASE WHEN d.debtor_id = $1 THEN creditor.name ELSE debtor.name END)::text AS other_user_name,
     COALESCE(SUM(d.remaining_amount_minor), 0)::bigint AS remaining_amount_minor,
-    COUNT(*)::bigint AS debt_count
+    COUNT(*)::bigint AS debt_count,
+    -- Pending payments still need creditor review; clients use this flag to show review state.
+    BOOL_OR(EXISTS (
+        SELECT 1
+        FROM payments p
+        WHERE p.debt_id = d.id
+          AND p.status = 'pending_confirmation'
+    ))::boolean AS has_pending_payment
 FROM debts d
 JOIN users debtor ON debtor.id = d.debtor_id
 JOIN users creditor ON creditor.id = d.creditor_id
