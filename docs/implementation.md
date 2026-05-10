@@ -235,7 +235,7 @@ Implemented:
 - Expense creation with participant rows and generated pending debts.
 - Debt acceptance and rejection by the debtor.
 - Owner review and resend of rejected debts, with optional amount adjustment.
-- Payment listing, marking by debtor, and review by creditor.
+- Payment listing, marking by debtor, bulk marking by receiver, and review by creditor.
 - Expense detail lookup and group expense listing.
 - Current-user debt listing.
 - Dashboard totals for accepted and partially settled debts.
@@ -387,6 +387,7 @@ Concurrency rules:
 Required behavior:
 - If two requests try to confirm the same payment, only one succeeds.
 - If two requests try to mark payment for the same debt while no payment is pending, only one pending payment is created.
+- If a bulk payment is marked across multiple debts, each selected debt must be locked and the created pending payments must not exceed the eligible remaining total.
 
 ---
 
@@ -462,6 +463,7 @@ POST   /v1/debts/{debtID}
 POST   /v1/debts/{debtID}/review
 
 GET    /v1/payments
+POST   /v1/payments/bulk
 POST   /v1/debts/{debtID}/payments
 POST   /v1/payments/{paymentID}
 
@@ -687,6 +689,18 @@ Rules:
 - Amount must not exceed available `remaining_amount_minor` after considering pending payments.
 - Create payment with `pending_confirmation`.
 
+### Bulk Mark Payments
+
+Rules:
+- Only debtor.
+- Request body uses `received_by`, `amount`, and optional `note`.
+- Receiver must be a different user.
+- Eligible debts must belong to the authenticated debtor and selected receiver.
+- Eligible debts must be `accepted` or `partially_settled`, have `remaining_amount_minor > 0`, and have no `pending_confirmation` payment.
+- Amount must be positive and must not exceed the eligible remaining total.
+- Allocate the submitted amount across eligible debts in a deterministic order.
+- Create one `pending_confirmation` payment per allocated debt in one transaction.
+
 ### List Payments
 
 Rules:
@@ -727,6 +741,7 @@ Dashboard totals include only valid debts:
 Views:
 - `you_owe`: debts where current user is debtor.
 - `you_get`: debts where current user is creditor.
+- `person_balances`: accepted and partially settled debts grouped by counterparty and direction so clients can show per-person totals.
 - `unsettled_balances`: up to five most recently updated pending or active debts involving the current user where `remaining_amount_minor > 0`, with the source expense title, counterparty user, remaining amount, status, and whether the balance is `owed` or `receivable`.
 - Full debt history is exposed separately through `GET /v1/debts`; the dashboard intentionally remains a latest-records summary.
 

@@ -77,6 +77,72 @@ func (r *Repository) Mark(ctx context.Context, params markParams) (Payment, erro
 	return paymentFromSQLC(payment), nil
 }
 
+func (r *Repository) BulkMark(ctx context.Context, params bulkMarkParams) ([]Payment, error) {
+	userUUID, receivedByUUID, err := parsePairUUIDs(params.UserID, params.ReceivedBy, ErrInvalidUserID, ErrInvalidReceiverID)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer rollbackUnlessCommitted(ctx, tx)
+
+	qtx := r.queries.WithTx(tx)
+	debts, err := qtx.ListBulkPaymentDebtsForUpdate(ctx, sqlc.ListBulkPaymentDebtsForUpdateParams{
+		DebtorID:   userUUID,
+		CreditorID: receivedByUUID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(debts) == 0 {
+		return nil, ErrNotFound
+	}
+
+	totalAvailable := int64(0)
+	for _, debt := range debts {
+		totalAvailable += debt.RemainingAmountMinor
+	}
+	if params.AmountMinor > totalAvailable {
+		return nil, ErrAmountExceedsRemaining
+	}
+
+	remaining := params.AmountMinor
+	created := make([]Payment, 0, len(debts))
+	for _, debt := range debts {
+		if remaining == 0 {
+			break
+		}
+
+		amount := debt.RemainingAmountMinor
+		if amount > remaining {
+			amount = remaining
+		}
+
+		payment, err := qtx.CreatePayment(ctx, sqlc.CreatePaymentParams{
+			DebtID:      debt.ID,
+			PaidBy:      userUUID,
+			ReceivedBy:  receivedByUUID,
+			AmountMinor: amount,
+			Note:        nullableText(params.Note),
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		created = append(created, paymentFromSQLC(payment))
+		remaining -= amount
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	return created, nil
+}
+
 func (r *Repository) ListForUser(ctx context.Context, filters ListFilters) ([]ListItem, error) {
 	userUUID, err := parseUUID(filters.UserID)
 	if err != nil {

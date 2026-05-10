@@ -217,6 +217,54 @@ func (q *Queries) GetPaymentWithDebtForUpdate(ctx context.Context, id pgtype.UUI
 	return i, err
 }
 
+const listBulkPaymentDebtsForUpdate = `-- name: ListBulkPaymentDebtsForUpdate :many
+SELECT d.id,
+       d.remaining_amount_minor
+FROM debts d
+WHERE d.debtor_id = $1
+  AND d.creditor_id = $2
+  AND d.status IN ('accepted', 'partially_settled')
+  AND d.remaining_amount_minor > 0
+  AND NOT EXISTS (
+      SELECT 1
+      FROM payments p
+      WHERE p.debt_id = d.id
+        AND p.status = 'pending_confirmation'
+  )
+ORDER BY d.updated_at ASC, d.created_at ASC, d.id ASC
+FOR UPDATE
+`
+
+type ListBulkPaymentDebtsForUpdateParams struct {
+	DebtorID   pgtype.UUID
+	CreditorID pgtype.UUID
+}
+
+type ListBulkPaymentDebtsForUpdateRow struct {
+	ID                   pgtype.UUID
+	RemainingAmountMinor int64
+}
+
+func (q *Queries) ListBulkPaymentDebtsForUpdate(ctx context.Context, arg ListBulkPaymentDebtsForUpdateParams) ([]ListBulkPaymentDebtsForUpdateRow, error) {
+	rows, err := q.db.Query(ctx, listBulkPaymentDebtsForUpdate, arg.DebtorID, arg.CreditorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBulkPaymentDebtsForUpdateRow
+	for rows.Next() {
+		var i ListBulkPaymentDebtsForUpdateRow
+		if err := rows.Scan(&i.ID, &i.RemainingAmountMinor); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPaymentsForUser = `-- name: ListPaymentsForUser :many
 SELECT
     p.id,

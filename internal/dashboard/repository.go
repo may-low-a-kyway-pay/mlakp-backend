@@ -34,6 +34,11 @@ func (r *Repository) GetSnapshot(ctx context.Context, userID string) (Snapshot, 
 		return Snapshot{}, err
 	}
 
+	personRows, err := r.queries.ListDashboardPersonBalances(ctx, userUUID)
+	if err != nil {
+		return Snapshot{}, err
+	}
+
 	return Snapshot{
 		Totals: Totals{
 			YouOwe: DashboardAmount{
@@ -46,6 +51,7 @@ func (r *Repository) GetSnapshot(ctx context.Context, userID string) (Snapshot, 
 			},
 		},
 		UnsettledBalances: unsettledBalancesFromSQLC(balanceRows),
+		PersonBalances:    personBalancesFromSQLC(personRows),
 	}, nil
 }
 
@@ -63,6 +69,21 @@ func unsettledBalancesFromSQLC(rows []sqlc.ListDashboardUnsettledBalancesRow) []
 			RemainingAmountMinor: row.RemainingAmountMinor,
 			Status:               row.Status,
 			UpdatedAt:            row.UpdatedAt.Time,
+		})
+	}
+
+	return balances
+}
+
+func personBalancesFromSQLC(rows []sqlc.ListDashboardPersonBalancesRow) []PersonBalance {
+	balances := make([]PersonBalance, 0, len(rows))
+	for _, row := range rows {
+		balances = append(balances, PersonBalance{
+			Type:                 row.BalanceType,
+			OtherUserID:          formatUUID(row.OtherUserID),
+			OtherUserName:        row.OtherUserName,
+			RemainingAmountMinor: row.RemainingAmountMinor,
+			DebtCount:            row.DebtCount,
 		})
 	}
 

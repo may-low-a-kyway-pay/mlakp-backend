@@ -19,6 +19,23 @@ INSERT INTO payments (debt_id, paid_by, received_by, amount_minor, note)
 VALUES ($1, $2, $3, $4, $5)
 RETURNING id, debt_id, paid_by, received_by, amount_minor, status, note, confirmed_at, rejected_at, created_at, updated_at;
 
+-- name: ListBulkPaymentDebtsForUpdate :many
+SELECT d.id,
+       d.remaining_amount_minor
+FROM debts d
+WHERE d.debtor_id = $1
+  AND d.creditor_id = $2
+  AND d.status IN ('accepted', 'partially_settled')
+  AND d.remaining_amount_minor > 0
+  AND NOT EXISTS (
+      SELECT 1
+      FROM payments p
+      WHERE p.debt_id = d.id
+        AND p.status = 'pending_confirmation'
+  )
+ORDER BY d.updated_at ASC, d.created_at ASC, d.id ASC
+FOR UPDATE;
+
 -- name: ListPaymentsForUser :many
 SELECT
     p.id,

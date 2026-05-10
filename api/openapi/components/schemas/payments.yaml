@@ -11,6 +11,23 @@
         note:
           type: string
           nullable: true
+    BulkMarkPaymentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - received_by
+        - amount
+      properties:
+        received_by:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          pattern: '^[0-9]+(\.[0-9]{1,2})?$'
+          example: "75.00"
+        note:
+          type: string
+          nullable: true
     ReviewPaymentRequest:
       type: object
       additionalProperties: false
@@ -150,3 +167,24 @@
               type: array
               items:
                 $ref: "#/components/schemas/PaymentListItem"
+    BulkPaymentsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - payments
+          properties:
+            payments:
+              type: array
+              items:
+                $ref: "#/components/schemas/Payment"

@@ -20,12 +20,17 @@
       required:
         - you_owe
         - you_get
+        - person_balances
         - unsettled_balances
       properties:
         you_owe:
           $ref: "#/components/schemas/DashboardAmount"
         you_get:
           $ref: "#/components/schemas/DashboardAmount"
+        person_balances:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardPersonBalance"
         unsettled_balances:
           type: array
           maxItems: 5
@@ -43,6 +48,31 @@
           format: uuid
         name:
           type: string
+    DashboardPersonBalance:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - other_user
+        - remaining_amount
+        - remaining_amount_minor
+        - debt_count
+      properties:
+        type:
+          type: string
+          enum:
+            - owed
+            - receivable
+        other_user:
+          $ref: "#/components/schemas/DashboardUser"
+        remaining_amount:
+          type: string
+        remaining_amount_minor:
+          type: integer
+          format: int64
+        debt_count:
+          type: integer
+          format: int64
     DashboardUnsettledBalance:
       type: object
       additionalProperties: false

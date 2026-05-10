@@ -1122,6 +1122,63 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/InternalError"
+  /v1/payments/bulk:
+    post:
+      tags:
+        - Payments
+      summary: Mark bulk payments to one receiver
+      description: Allows the authenticated debtor to submit one amount toward accepted or partially settled debts owed to a selected receiver. The amount is allocated across eligible debts and each created payment waits for creditor review.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkMarkPaymentRequest"
+            examples:
+              pay_receiver_total:
+                value:
+                  received_by: "00000000-0000-0000-0000-000000000002"
+                  amount: "75.00"
+                  note: Bank transfer
+      responses:
+        "201":
+          description: Bulk payments marked and waiting for creditor review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkPaymentsResponse"
+        "400":
+          description: Invalid JSON, receiver, or amount.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Current user cannot submit a payment to themself.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No eligible debts found for this receiver.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Payment amount exceeds eligible remaining debt amount.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
+        "500":
+          $ref: "#/components/responses/InternalError"
   /v1/debts/{debtID}/payments:
     post:
       tags:
@@ -2173,6 +2230,23 @@ components:
         note:
           type: string
           nullable: true
+    BulkMarkPaymentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - received_by
+        - amount
+      properties:
+        received_by:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          pattern: '^[0-9]+(\.[0-9]{1,2})?$'
+          example: "75.00"
+        note:
+          type: string
+          nullable: true
     ReviewPaymentRequest:
       type: object
       additionalProperties: false
@@ -2312,6 +2386,27 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/PaymentListItem"
+    BulkPaymentsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - payments
+          properties:
+            payments:
+              type: array
+              items:
+                $ref: "#/components/schemas/Payment"
     DashboardAmount:
       type: object
       additionalProperties: false
@@ -2334,12 +2429,17 @@ components:
       required:
         - you_owe
         - you_get
+        - person_balances
         - unsettled_balances
       properties:
         you_owe:
           $ref: "#/components/schemas/DashboardAmount"
         you_get:
           $ref: "#/components/schemas/DashboardAmount"
+        person_balances:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardPersonBalance"
         unsettled_balances:
           type: array
           maxItems: 5
@@ -2357,6 +2457,31 @@ components:
           format: uuid
         name:
           type: string
+    DashboardPersonBalance:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - other_user
+        - remaining_amount
+        - remaining_amount_minor
+        - debt_count
+      properties:
+        type:
+          type: string
+          enum:
+            - owed
+            - receivable
+        other_user:
+          $ref: "#/components/schemas/DashboardUser"
+        remaining_amount:
+          type: string
+        remaining_amount_minor:
+          type: integer
+          format: int64
+        debt_count:
+          type: integer
+          format: int64
     DashboardUnsettledBalance:
       type: object
       additionalProperties: false

@@ -1,6 +1,6 @@
 # MLAKP Backend
 
-Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation in local/test mode, rate-limited user registration/login/refresh, strict JSON request decoding, session-backed logout, authenticated current-user/profile update endpoints, username search, authenticated group creation, listing, details, member management by username, expense creation/detail/listing, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, current-user debt listing, payment listing/marking/review, and dashboard snapshots.
+Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation in local/test mode, rate-limited user registration/login/refresh, strict JSON request decoding, session-backed logout, authenticated current-user/profile update endpoints, username search, authenticated group creation, listing, details, member management by username, expense creation/detail/listing, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, current-user debt listing, payment listing/marking/bulk marking/review, and dashboard snapshots.
 
 ## Requirements
 
@@ -379,13 +379,22 @@ curl -s http://localhost:8080/v1/debts \
 curl -s 'http://localhost:8080/v1/payments?type=received&status=pending_confirmation' \
   -H "Authorization: Bearer $TOKEN"
 
+curl -s -X POST http://localhost:8080/v1/payments/bulk \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "received_by": "'"$RECEIVER_ID"'",
+    "amount": "75.00",
+    "note": "Bank transfer"
+  }'
+
 curl -s http://localhost:8080/v1/dashboard \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-The payments list returns records where the current user is either payer or receiver. Use `type=received` for the creditor review inbox, `type=sent` for submitted payments, and optional `status=pending_confirmation|confirmed|rejected` for state-specific views.
+The payments list returns records where the current user is either payer or receiver. Use `type=received` for the creditor review inbox, `type=sent` for submitted payments, and optional `status=pending_confirmation|confirmed|rejected` for state-specific views. Bulk marking lets the debtor submit one amount to a selected receiver; the backend allocates it across eligible accepted or partially settled debts and returns the created pending payments.
 
-The dashboard response includes `you_owe`, `you_get`, and an `unsettled_balances` preview with up to five pending or active balances that still have remaining amount. Each preview item includes the source expense title, counterparty user, remaining amount, status, and whether the current user sees it as `owed` or `receivable`.
+The dashboard response includes `you_owe`, `you_get`, `person_balances`, and an `unsettled_balances` preview with up to five pending or active balances that still have remaining amount. `person_balances` groups active accepted or partially settled balances by counterparty and direction. Each preview item includes the source expense title, counterparty user, remaining amount, status, and whether the current user sees it as `owed` or `receivable`.
 
 Refresh the access token:
 

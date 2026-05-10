@@ -138,6 +138,44 @@ func TestRepositoryMarkConcurrentPaymentsAllowsOnlyOnePendingPayment(t *testing.
 	}
 }
 
+func TestRepositoryBulkMarkAllocatesAcrossEligibleDebts(t *testing.T) {
+	pool := newIntegrationPool(t)
+	repository := NewRepository(pool, sqlc.New(pool))
+	fixture := seedAcceptedDebt(t, pool, 600)
+	secondDebtID := seedAcceptedDebtForUsers(t, pool, fixture.creditorID, fixture.debtorID, 500)
+	pendingDebtID := seedAcceptedDebtForUsers(t, pool, fixture.creditorID, fixture.debtorID, 400)
+	seedPayment(t, pool, pendingDebtID, fixture.debtorID, fixture.creditorID, 100)
+
+	payments, err := repository.BulkMark(context.Background(), bulkMarkParams{
+		UserID:      fixture.debtorID,
+		ReceivedBy:  fixture.creditorID,
+		AmountMinor: 900,
+	})
+	if err != nil {
+		t.Fatalf("BulkMark() error = %v", err)
+	}
+	if len(payments) != 2 {
+		t.Fatalf("len(payments) = %d, want 2", len(payments))
+	}
+
+	gotByDebt := map[string]int64{}
+	for _, payment := range payments {
+		if payment.Status != StatusPendingConfirmation {
+			t.Fatalf("payment status = %q, want %q", payment.Status, StatusPendingConfirmation)
+		}
+		gotByDebt[payment.DebtID] = payment.AmountMinor
+	}
+	if gotByDebt[fixture.debtID] != 600 {
+		t.Fatalf("first debt payment = %d, want 600", gotByDebt[fixture.debtID])
+	}
+	if gotByDebt[secondDebtID] != 300 {
+		t.Fatalf("second debt payment = %d, want 300", gotByDebt[secondDebtID])
+	}
+	if _, ok := gotByDebt[pendingDebtID]; ok {
+		t.Fatalf("pending debt %s received a new bulk payment", pendingDebtID)
+	}
+}
+
 type paymentFixture struct {
 	debtorID   string
 	creditorID string
@@ -243,19 +281,18 @@ func seedAcceptedDebt(t *testing.T, pool *pgxpool.Pool, amountMinor int64) payme
 	var creditorID string
 	var debtorID string
 	var groupID string
-	var expenseID string
 	var debtID string
 
 	if err := pool.QueryRow(ctx, `
-		INSERT INTO users (name, email, password_hash)
-		VALUES ('Creditor', 'creditor-' || gen_random_uuid() || '@example.com', 'hash')
+		INSERT INTO users (name, username, email, password_hash)
+		VALUES ('Creditor', 'creditor_' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 12), 'creditor-' || gen_random_uuid() || '@example.com', 'hash')
 		RETURNING id::text
 	`).Scan(&creditorID); err != nil {
 		t.Fatalf("seed creditor: %v", err)
 	}
 	if err := pool.QueryRow(ctx, `
-		INSERT INTO users (name, email, password_hash)
-		VALUES ('Debtor', 'debtor-' || gen_random_uuid() || '@example.com', 'hash')
+		INSERT INTO users (name, username, email, password_hash)
+		VALUES ('Debtor', 'debtor_' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 12), 'debtor-' || gen_random_uuid() || '@example.com', 'hash')
 		RETURNING id::text
 	`).Scan(&debtorID); err != nil {
 		t.Fatalf("seed debtor: %v", err)
@@ -273,20 +310,50 @@ func seedAcceptedDebt(t *testing.T, pool *pgxpool.Pool, amountMinor int64) payme
 	`, groupID, creditorID, debtorID); err != nil {
 		t.Fatalf("seed group members: %v", err)
 	}
-	if err := pool.QueryRow(ctx, `
+	debtID = seedAcceptedDebtWithGroup(t, pool, groupID, creditorID, debtorID, amountMinor)
+
+	return paymentFixture{
+		debtorID:   debtorID,
+		creditorID: creditorID,
+		debtID:     debtID,
+	}
+}
+
+func seedAcceptedDebtForUsers(t *testing.T, pool *pgxpool.Pool, creditorID, debtorID string, amountMinor int64) string {
+	t.Helper()
+
+	var groupID string
+	if err := pool.QueryRow(context.Background(), `
+		SELECT group_id::text
+		FROM group_members
+		WHERE user_id = $1
+		LIMIT 1
+	`, creditorID).Scan(&groupID); err != nil {
+		t.Fatalf("lookup group: %v", err)
+	}
+
+	return seedAcceptedDebtWithGroup(t, pool, groupID, creditorID, debtorID, amountMinor)
+}
+
+func seedAcceptedDebtWithGroup(t *testing.T, pool *pgxpool.Pool, groupID, creditorID, debtorID string, amountMinor int64) string {
+	t.Helper()
+
+	var expenseID string
+	var debtID string
+	if err := pool.QueryRow(context.Background(), `
 		INSERT INTO expenses (group_id, title, total_amount_minor, currency, paid_by, split_type, created_by)
 		VALUES ($1, 'Dinner', $2, 'THB', $3, 'manual', $3)
 		RETURNING id::text
 	`, groupID, amountMinor, creditorID).Scan(&expenseID); err != nil {
 		t.Fatalf("seed expense: %v", err)
 	}
-	if _, err := pool.Exec(ctx, `
+	if _, err := pool.Exec(context.Background(), `
 		INSERT INTO expense_participants (expense_id, user_id, share_amount_minor)
 		VALUES ($1, $2, $4), ($1, $3, $4)
 	`, expenseID, creditorID, debtorID, amountMinor); err != nil {
 		t.Fatalf("seed participants: %v", err)
 	}
-	if err := pool.QueryRow(ctx, `
+	if err := pool.QueryRow(context.Background(), `
 		INSERT INTO debts (expense_id, debtor_id, creditor_id, original_amount_minor, remaining_amount_minor, status, accepted_at)
 		VALUES ($1, $2, $3, $4, $4, 'accepted', now())
 		RETURNING id::text
@@ -294,11 +361,7 @@ func seedAcceptedDebt(t *testing.T, pool *pgxpool.Pool, amountMinor int64) payme
 		t.Fatalf("seed debt: %v", err)
 	}
 
-	return paymentFixture{
-		debtorID:   debtorID,
-		creditorID: creditorID,
-		debtID:     debtID,
-	}
+	return debtID
 }
 
 func seedPayment(t *testing.T, pool *pgxpool.Pool, debtID, paidBy, receivedBy string, amountMinor int64) string {
