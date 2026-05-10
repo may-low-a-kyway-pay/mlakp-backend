@@ -53,6 +53,57 @@ func (q *Queries) GetDashboardTotalsForUser(ctx context.Context, debtorID pgtype
 	return i, err
 }
 
+const listDashboardPersonBalances = `-- name: ListDashboardPersonBalances :many
+SELECT
+    CASE WHEN d.debtor_id = $1 THEN 'owed' ELSE 'receivable' END::text AS balance_type,
+    (CASE WHEN d.debtor_id = $1 THEN d.creditor_id ELSE d.debtor_id END)::uuid AS other_user_id,
+    (CASE WHEN d.debtor_id = $1 THEN creditor.name ELSE debtor.name END)::text AS other_user_name,
+    COALESCE(SUM(d.remaining_amount_minor), 0)::bigint AS remaining_amount_minor,
+    COUNT(*)::bigint AS debt_count
+FROM debts d
+JOIN users debtor ON debtor.id = d.debtor_id
+JOIN users creditor ON creditor.id = d.creditor_id
+WHERE (d.debtor_id = $1 OR d.creditor_id = $1)
+  AND d.status IN ('accepted', 'partially_settled')
+  AND d.remaining_amount_minor > 0
+GROUP BY balance_type, other_user_id, other_user_name
+ORDER BY balance_type ASC, remaining_amount_minor DESC, other_user_name ASC
+`
+
+type ListDashboardPersonBalancesRow struct {
+	BalanceType          string
+	OtherUserID          pgtype.UUID
+	OtherUserName        string
+	RemainingAmountMinor int64
+	DebtCount            int64
+}
+
+func (q *Queries) ListDashboardPersonBalances(ctx context.Context, debtorID pgtype.UUID) ([]ListDashboardPersonBalancesRow, error) {
+	rows, err := q.db.Query(ctx, listDashboardPersonBalances, debtorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDashboardPersonBalancesRow
+	for rows.Next() {
+		var i ListDashboardPersonBalancesRow
+		if err := rows.Scan(
+			&i.BalanceType,
+			&i.OtherUserID,
+			&i.OtherUserName,
+			&i.RemainingAmountMinor,
+			&i.DebtCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDashboardUnsettledBalances = `-- name: ListDashboardUnsettledBalances :many
 SELECT
     d.id,

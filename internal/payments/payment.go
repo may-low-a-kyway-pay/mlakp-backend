@@ -49,9 +49,23 @@ type MarkInput struct {
 	Note   *string
 }
 
+type BulkMarkInput struct {
+	UserID     string
+	ReceivedBy string
+	Amount     string
+	Note       *string
+}
+
 type markParams struct {
 	DebtID      string
 	UserID      string
+	AmountMinor int64
+	Note        *string
+}
+
+type bulkMarkParams struct {
+	UserID      string
+	ReceivedBy  string
 	AmountMinor int64
 	Note        *string
 }

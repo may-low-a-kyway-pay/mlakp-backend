@@ -15,6 +15,7 @@ type DashboardAmount struct {
 type Snapshot struct {
 	Totals            Totals
 	UnsettledBalances []UnsettledBalance
+	PersonBalances    []PersonBalance
 }
 
 type UnsettledBalance struct {
@@ -28,4 +29,12 @@ type UnsettledBalance struct {
 	RemainingAmountMinor int64
 	Status               string
 	UpdatedAt            time.Time
+}
+
+type PersonBalance struct {
+	Type                 string
+	OtherUserID          string
+	OtherUserName        string
+	RemainingAmountMinor int64
+	DebtCount            int64
 }

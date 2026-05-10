@@ -24,6 +24,7 @@ type dashboardResponse struct {
 	YouOwe            dashboardAmountResponse    `json:"you_owe"`
 	YouGet            dashboardAmountResponse    `json:"you_get"`
 	UnsettledBalances []unsettledBalanceResponse `json:"unsettled_balances"`
+	PersonBalances    []personBalanceResponse    `json:"person_balances"`
 }
 
 type dashboardUserResponse struct {
@@ -41,6 +42,14 @@ type unsettledBalanceResponse struct {
 	RemainingMinor  int64                 `json:"remaining_amount_minor"`
 	Status          string                `json:"status"`
 	UpdatedAt       string                `json:"updated_at"`
+}
+
+type personBalanceResponse struct {
+	Type            string                `json:"type"`
+	OtherUser       dashboardUserResponse `json:"other_user"`
+	RemainingAmount string                `json:"remaining_amount"`
+	RemainingMinor  int64                 `json:"remaining_amount_minor"`
+	DebtCount       int64                 `json:"debt_count"`
 }
 
 func NewDashboardHandler(dashboard *dashboard.Service) *DashboardHandler {
@@ -79,6 +88,7 @@ func toDashboardResponse(snapshot dashboard.Snapshot, userID string) dashboardRe
 		YouOwe:            toDashboardAmountResponse(snapshot.Totals.YouOwe),
 		YouGet:            toDashboardAmountResponse(snapshot.Totals.YouGet),
 		UnsettledBalances: toUnsettledBalanceResponses(snapshot.UnsettledBalances, userID),
+		PersonBalances:    toPersonBalanceResponses(snapshot.PersonBalances),
 	}
 }
 
@@ -117,6 +127,24 @@ func toUnsettledBalanceResponses(balances []dashboard.UnsettledBalance, userID s
 			RemainingMinor:  balance.RemainingAmountMinor,
 			Status:          balance.Status,
 			UpdatedAt:       balance.UpdatedAt.Format(timeFormatRFC3339),
+		})
+	}
+
+	return responses
+}
+
+func toPersonBalanceResponses(balances []dashboard.PersonBalance) []personBalanceResponse {
+	responses := make([]personBalanceResponse, 0, len(balances))
+	for _, balance := range balances {
+		responses = append(responses, personBalanceResponse{
+			Type: balance.Type,
+			OtherUser: dashboardUserResponse{
+				ID:   balance.OtherUserID,
+				Name: balance.OtherUserName,
+			},
+			RemainingAmount: money.FormatMinor(balance.RemainingAmountMinor),
+			RemainingMinor:  balance.RemainingAmountMinor,
+			DebtCount:       balance.DebtCount,
 		})
 	}
 

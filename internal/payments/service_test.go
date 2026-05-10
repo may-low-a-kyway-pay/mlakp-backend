@@ -56,6 +56,57 @@ func TestServiceMarkTrimsAndParsesInput(t *testing.T) {
 	}
 }
 
+func TestServiceBulkMarkValidatesInput(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   BulkMarkInput
+		wantErr error
+	}{
+		{name: "missing user", input: BulkMarkInput{UserID: " ", ReceivedBy: "user-2", Amount: "10.00"}, wantErr: ErrInvalidUserID},
+		{name: "missing receiver", input: BulkMarkInput{UserID: "user-1", ReceivedBy: " ", Amount: "10.00"}, wantErr: ErrInvalidReceiverID},
+		{name: "self payment", input: BulkMarkInput{UserID: "user-1", ReceivedBy: "user-1", Amount: "10.00"}, wantErr: ErrForbidden},
+		{name: "invalid amount", input: BulkMarkInput{UserID: "user-1", ReceivedBy: "user-2", Amount: "1.234"}, wantErr: ErrInvalidAmount},
+		{name: "zero amount", input: BulkMarkInput{UserID: "user-1", ReceivedBy: "user-2", Amount: "0"}, wantErr: ErrInvalidAmount},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := NewService(&fakeStore{})
+			_, err := service.BulkMark(context.Background(), tt.input)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("BulkMark() error = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestServiceBulkMarkTrimsAndParsesInput(t *testing.T) {
+	store := &fakeStore{}
+	service := NewService(store)
+	note := " multiple debts "
+
+	if _, err := service.BulkMark(context.Background(), BulkMarkInput{
+		UserID:     " user-1 ",
+		ReceivedBy: " user-2 ",
+		Amount:     "25.75",
+		Note:       &note,
+	}); err != nil {
+		t.Fatalf("BulkMark() error = %v", err)
+	}
+	if store.bulkMarkParams.UserID != "user-1" {
+		t.Fatalf("UserID = %q, want user-1", store.bulkMarkParams.UserID)
+	}
+	if store.bulkMarkParams.ReceivedBy != "user-2" {
+		t.Fatalf("ReceivedBy = %q, want user-2", store.bulkMarkParams.ReceivedBy)
+	}
+	if store.bulkMarkParams.AmountMinor != 2575 {
+		t.Fatalf("AmountMinor = %d, want 2575", store.bulkMarkParams.AmountMinor)
+	}
+	if store.bulkMarkParams.Note == nil || *store.bulkMarkParams.Note != "multiple debts" {
+		t.Fatalf("Note = %v, want multiple debts", store.bulkMarkParams.Note)
+	}
+}
+
 func TestServiceListValidatesAndTrimsInput(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -151,16 +202,22 @@ func TestServiceReviewDispatchesByType(t *testing.T) {
 }
 
 type fakeStore struct {
-	markParams  markParams
-	listFilters ListFilters
-	paymentID   string
-	userID      string
-	call        string
+	markParams     markParams
+	bulkMarkParams bulkMarkParams
+	listFilters    ListFilters
+	paymentID      string
+	userID         string
+	call           string
 }
 
 func (s *fakeStore) Mark(_ context.Context, params markParams) (Payment, error) {
 	s.markParams = params
 	return Payment{}, nil
+}
+
+func (s *fakeStore) BulkMark(_ context.Context, params bulkMarkParams) ([]Payment, error) {
+	s.bulkMarkParams = params
+	return nil, nil
 }
 
 func (s *fakeStore) ListForUser(_ context.Context, filters ListFilters) ([]ListItem, error) {

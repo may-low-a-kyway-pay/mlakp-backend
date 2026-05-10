@@ -12,6 +12,7 @@ var (
 	ErrInvalidDebtID          = errors.New("debt id is invalid")
 	ErrInvalidPaymentID       = errors.New("payment id is invalid")
 	ErrInvalidUserID          = errors.New("user id is invalid")
+	ErrInvalidReceiverID      = errors.New("receiver id is invalid")
 	ErrInvalidAmount          = errors.New("payment amount is invalid")
 	ErrNotFound               = errors.New("payment or debt not found")
 	ErrForbidden              = errors.New("payment action is forbidden")
@@ -26,6 +27,7 @@ var (
 
 type Store interface {
 	Mark(ctx context.Context, params markParams) (Payment, error)
+	BulkMark(ctx context.Context, params bulkMarkParams) ([]Payment, error)
 	ListForUser(ctx context.Context, filters ListFilters) ([]ListItem, error)
 	Confirm(ctx context.Context, paymentID, userID string) (Payment, error)
 	Reject(ctx context.Context, paymentID, userID string) (Payment, error)
@@ -46,6 +48,15 @@ func (s *Service) Mark(ctx context.Context, input MarkInput) (Payment, error) {
 	}
 
 	return s.store.Mark(ctx, params)
+}
+
+func (s *Service) BulkMark(ctx context.Context, input BulkMarkInput) ([]Payment, error) {
+	params, err := validateBulkMarkInput(input)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.store.BulkMark(ctx, params)
 }
 
 func (s *Service) List(ctx context.Context, input ListInput) ([]ListItem, error) {
@@ -141,6 +152,37 @@ func validateMarkInput(input MarkInput) (markParams, error) {
 	return markParams{
 		DebtID:      debtID,
 		UserID:      userID,
+		AmountMinor: amountMinor,
+		Note:        normalizeOptionalString(input.Note),
+	}, nil
+}
+
+func validateBulkMarkInput(input BulkMarkInput) (bulkMarkParams, error) {
+	userID := strings.TrimSpace(input.UserID)
+	if userID == "" {
+		return bulkMarkParams{}, ErrInvalidUserID
+	}
+
+	receivedBy := strings.TrimSpace(input.ReceivedBy)
+	if receivedBy == "" {
+		return bulkMarkParams{}, ErrInvalidReceiverID
+	}
+
+	if receivedBy == userID {
+		return bulkMarkParams{}, ErrForbidden
+	}
+
+	amountMinor, err := money.ParseMinor(input.Amount)
+	if err != nil {
+		return bulkMarkParams{}, ErrInvalidAmount
+	}
+	if err := money.ValidatePositive(amountMinor); err != nil {
+		return bulkMarkParams{}, ErrInvalidAmount
+	}
+
+	return bulkMarkParams{
+		UserID:      userID,
+		ReceivedBy:  receivedBy,
 		AmountMinor: amountMinor,
 		Note:        normalizeOptionalString(input.Note),
 	}, nil

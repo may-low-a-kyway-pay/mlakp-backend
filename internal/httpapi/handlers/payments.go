@@ -19,6 +19,12 @@ type markPaymentRequest struct {
 	Note   *string `json:"note"`
 }
 
+type bulkMarkPaymentRequest struct {
+	ReceivedBy string  `json:"received_by"`
+	Amount     string  `json:"amount"`
+	Note       *string `json:"note"`
+}
+
 type reviewPaymentRequest struct {
 	Type string `json:"type"`
 }
@@ -109,6 +115,40 @@ func (h *PaymentHandler) Mark(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *PaymentHandler) BulkMark(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+		return
+	}
+
+	var request bulkMarkPaymentRequest
+	if err := decodeJSON(r, &request); err != nil {
+		writeDecodeError(w, err)
+		return
+	}
+
+	paymentsList, err := h.payments.BulkMark(r.Context(), payments.BulkMarkInput{
+		UserID:     userID,
+		ReceivedBy: request.ReceivedBy,
+		Amount:     request.Amount,
+		Note:       request.Note,
+	})
+	if err != nil {
+		writePaymentError(w, err)
+		return
+	}
+
+	paymentsResponse := make([]paymentResponse, 0, len(paymentsList))
+	for _, payment := range paymentsList {
+		paymentsResponse = append(paymentsResponse, toPaymentResponse(payment))
+	}
+
+	response.Success(w, http.StatusCreated, map[string][]paymentResponse{
+		"payments": paymentsResponse,
+	})
+}
+
 func (h *PaymentHandler) Update(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {
@@ -145,6 +185,8 @@ func writePaymentError(w http.ResponseWriter, err error) {
 		response.Error(w, http.StatusBadRequest, "invalid_payment_id", "Payment ID is invalid")
 	case errors.Is(err, payments.ErrInvalidUserID):
 		response.Error(w, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+	case errors.Is(err, payments.ErrInvalidReceiverID):
+		response.Error(w, http.StatusBadRequest, "invalid_receiver_id", "Receiver ID is invalid")
 	case errors.Is(err, payments.ErrInvalidAmount):
 		response.Error(w, http.StatusBadRequest, "invalid_amount", "Payment amount is invalid")
 	case errors.Is(err, payments.ErrNotFound):

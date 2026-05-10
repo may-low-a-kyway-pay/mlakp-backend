@@ -56,6 +56,63 @@
           $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/InternalError"
+  /v1/payments/bulk:
+    post:
+      tags:
+        - Payments
+      summary: Mark bulk payments to one receiver
+      description: Allows the authenticated debtor to submit one amount toward accepted or partially settled debts owed to a selected receiver. The amount is allocated across eligible debts and each created payment waits for creditor review.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkMarkPaymentRequest"
+            examples:
+              pay_receiver_total:
+                value:
+                  received_by: "00000000-0000-0000-0000-000000000002"
+                  amount: "75.00"
+                  note: Bank transfer
+      responses:
+        "201":
+          description: Bulk payments marked and waiting for creditor review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkPaymentsResponse"
+        "400":
+          description: Invalid JSON, receiver, or amount.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Current user cannot submit a payment to themself.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No eligible debts found for this receiver.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Payment amount exceeds eligible remaining debt amount.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
+        "500":
+          $ref: "#/components/responses/InternalError"
   /v1/debts/{debtID}/payments:
     post:
       tags:
