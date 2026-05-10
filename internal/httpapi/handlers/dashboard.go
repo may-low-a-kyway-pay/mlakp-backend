@@ -28,8 +28,9 @@ type dashboardResponse struct {
 }
 
 type dashboardUserResponse struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
 }
 
 type unsettledBalanceResponse struct {
@@ -106,15 +107,17 @@ func toUnsettledBalanceResponses(balances []dashboard.UnsettledBalance, userID s
 	for _, balance := range balances {
 		balanceType := "receivable"
 		otherUser := dashboardUserResponse{
-			ID:   balance.DebtorID,
-			Name: balance.DebtorName,
+			ID:       balance.DebtorID,
+			Name:     balance.DebtorName,
+			Username: balance.DebtorUsername,
 		}
 
 		if balance.DebtorID == userID {
 			balanceType = "owed"
 			otherUser = dashboardUserResponse{
-				ID:   balance.CreditorID,
-				Name: balance.CreditorName,
+				ID:       balance.CreditorID,
+				Name:     balance.CreditorName,
+				Username: balance.CreditorUsername,
 			}
 		}
 
@@ -140,8 +143,9 @@ func toPersonBalanceResponses(balances []dashboard.PersonBalance) []personBalanc
 		responses = append(responses, personBalanceResponse{
 			Type: balance.Type,
 			OtherUser: dashboardUserResponse{
-				ID:   balance.OtherUserID,
-				Name: balance.OtherUserName,
+				ID:       balance.OtherUserID,
+				Name:     balance.OtherUserName,
+				Username: balance.OtherUserUsername,
 			},
 			RemainingAmount: money.FormatMinor(balance.RemainingAmountMinor),
 			RemainingMinor:  balance.RemainingAmountMinor,

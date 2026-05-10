@@ -1352,6 +1352,17 @@ components:
       scheme: bearer
       bearerFormat: HMAC-SHA256
   responses:
+    Unauthorized:
+      description: Authentication is required or the access token is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: unauthenticated
+              message: Authentication is required
     RequestBodyTooLarge:
       description: Request body exceeds the maximum accepted size.
       content:
@@ -2116,10 +2127,14 @@ components:
           format: uuid
         debtor_name:
           type: string
+        debtor_username:
+          type: string
         creditor_id:
           type: string
           format: uuid
         creditor_name:
+          type: string
+        creditor_username:
           type: string
         original_amount:
           type: string
@@ -2451,11 +2466,14 @@ components:
       required:
         - id
         - name
+        - username
       properties:
         id:
           type: string
           format: uuid
         name:
+          type: string
+        username:
           type: string
     DashboardPersonBalance:
       type: object
