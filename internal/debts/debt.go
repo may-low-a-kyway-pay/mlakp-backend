@@ -33,9 +33,11 @@ type Debt struct {
 
 type ListItem struct {
 	Debt
-	ExpenseTitle string
-	DebtorName   string
-	CreditorName string
+	ExpenseTitle     string
+	DebtorName       string
+	DebtorUsername   string
+	CreditorName     string
+	CreditorUsername string
 }
 
 type ReviewRejectedInput struct {

@@ -1,4 +1,15 @@
   responses:
+    Unauthorized:
+      description: Authentication is required or the access token is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: unauthenticated
+              message: Authentication is required
     RequestBodyTooLarge:
       description: Request body exceeds the maximum accepted size.
       content:

@@ -254,10 +254,14 @@
           format: uuid
         debtor_name:
           type: string
+        debtor_username:
+          type: string
         creditor_id:
           type: string
           format: uuid
         creditor_name:
+          type: string
+        creditor_username:
           type: string
         original_amount:
           type: string

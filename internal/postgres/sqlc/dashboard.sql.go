@@ -58,6 +58,7 @@ SELECT
     CASE WHEN d.debtor_id = $1 THEN 'owed' ELSE 'receivable' END::text AS balance_type,
     (CASE WHEN d.debtor_id = $1 THEN d.creditor_id ELSE d.debtor_id END)::uuid AS other_user_id,
     (CASE WHEN d.debtor_id = $1 THEN creditor.name ELSE debtor.name END)::text AS other_user_name,
+    (CASE WHEN d.debtor_id = $1 THEN creditor.username ELSE debtor.username END)::text AS other_user_username,
     COALESCE(SUM(d.remaining_amount_minor), 0)::bigint AS remaining_amount_minor,
     COUNT(*)::bigint AS debt_count,
     -- Pending payments still need creditor review; clients use this flag to show review state.
@@ -73,7 +74,7 @@ JOIN users creditor ON creditor.id = d.creditor_id
 WHERE (d.debtor_id = $1 OR d.creditor_id = $1)
   AND d.status IN ('accepted', 'partially_settled')
   AND d.remaining_amount_minor > 0
-GROUP BY balance_type, other_user_id, other_user_name
+GROUP BY balance_type, other_user_id, other_user_name, other_user_username
 ORDER BY balance_type ASC, remaining_amount_minor DESC, other_user_name ASC
 `
 
@@ -81,6 +82,7 @@ type ListDashboardPersonBalancesRow struct {
 	BalanceType          string
 	OtherUserID          pgtype.UUID
 	OtherUserName        string
+	OtherUserUsername    string
 	RemainingAmountMinor int64
 	DebtCount            int64
 	HasPendingPayment    bool
@@ -99,6 +101,7 @@ func (q *Queries) ListDashboardPersonBalances(ctx context.Context, debtorID pgty
 			&i.BalanceType,
 			&i.OtherUserID,
 			&i.OtherUserName,
+			&i.OtherUserUsername,
 			&i.RemainingAmountMinor,
 			&i.DebtCount,
 			&i.HasPendingPayment,
@@ -120,8 +123,10 @@ SELECT
     e.title AS expense_title,
     d.debtor_id,
     debtor.name AS debtor_name,
+    debtor.username AS debtor_username,
     d.creditor_id,
     creditor.name AS creditor_name,
+    creditor.username AS creditor_username,
     d.remaining_amount_minor,
     d.status,
     d.updated_at
@@ -142,8 +147,10 @@ type ListDashboardUnsettledBalancesRow struct {
 	ExpenseTitle         string
 	DebtorID             pgtype.UUID
 	DebtorName           string
+	DebtorUsername       string
 	CreditorID           pgtype.UUID
 	CreditorName         string
+	CreditorUsername     string
 	RemainingAmountMinor int64
 	Status               string
 	UpdatedAt            pgtype.Timestamptz
@@ -164,8 +171,10 @@ func (q *Queries) ListDashboardUnsettledBalances(ctx context.Context, debtorID p
 			&i.ExpenseTitle,
 			&i.DebtorID,
 			&i.DebtorName,
+			&i.DebtorUsername,
 			&i.CreditorID,
 			&i.CreditorName,
+			&i.CreditorUsername,
 			&i.RemainingAmountMinor,
 			&i.Status,
 			&i.UpdatedAt,

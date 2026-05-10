@@ -134,7 +134,9 @@ func toDebtListItemResponse(debt debts.ListItem) debtResponse {
 	response := toDebtResponse(debt.Debt)
 	response.ExpenseTitle = &debt.ExpenseTitle
 	response.DebtorName = &debt.DebtorName
+	response.DebtorUsername = &debt.DebtorUsername
 	response.CreditorName = &debt.CreditorName
+	response.CreditorUsername = &debt.CreditorUsername
 	return response
 }
 

@@ -196,9 +196,11 @@ func debtListItemFromSQLC(row sqlc.ListDebtsForUserRow) ListItem {
 			CreatedAt:            row.CreatedAt.Time,
 			UpdatedAt:            row.UpdatedAt.Time,
 		},
-		ExpenseTitle: row.ExpenseTitle,
-		DebtorName:   row.DebtorName,
-		CreditorName: row.CreditorName,
+		ExpenseTitle:     row.ExpenseTitle,
+		DebtorName:       row.DebtorName,
+		DebtorUsername:   row.DebtorUsername,
+		CreditorName:     row.CreditorName,
+		CreditorUsername: row.CreditorUsername,
 	}
 }
 

@@ -24,8 +24,10 @@ type UnsettledBalance struct {
 	ExpenseTitle         string
 	DebtorID             string
 	DebtorName           string
+	DebtorUsername       string
 	CreditorID           string
 	CreditorName         string
+	CreditorUsername     string
 	RemainingAmountMinor int64
 	Status               string
 	UpdatedAt            time.Time
@@ -35,6 +37,7 @@ type PersonBalance struct {
 	Type                 string
 	OtherUserID          string
 	OtherUserName        string
+	OtherUserUsername    string
 	RemainingAmountMinor int64
 	DebtCount            int64
 	HasPendingPayment    bool

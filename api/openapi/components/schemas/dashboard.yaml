@@ -42,11 +42,14 @@
       required:
         - id
         - name
+        - username
       properties:
         id:
           type: string
           format: uuid
         name:
+          type: string
+        username:
           type: string
     DashboardPersonBalance:
       type: object

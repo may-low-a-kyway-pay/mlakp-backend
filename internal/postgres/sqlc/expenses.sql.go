@@ -340,8 +340,10 @@ SELECT
     e.title AS expense_title,
     d.debtor_id,
     debtor.name AS debtor_name,
+    debtor.username AS debtor_username,
     d.creditor_id,
     creditor.name AS creditor_name,
+    creditor.username AS creditor_username,
     d.original_amount_minor,
     d.remaining_amount_minor,
     d.status,
@@ -376,8 +378,10 @@ type ListDebtsForUserRow struct {
 	ExpenseTitle         string
 	DebtorID             pgtype.UUID
 	DebtorName           string
+	DebtorUsername       string
 	CreditorID           pgtype.UUID
 	CreditorName         string
+	CreditorUsername     string
 	OriginalAmountMinor  int64
 	RemainingAmountMinor int64
 	Status               string
@@ -403,8 +407,10 @@ func (q *Queries) ListDebtsForUser(ctx context.Context, arg ListDebtsForUserPara
 			&i.ExpenseTitle,
 			&i.DebtorID,
 			&i.DebtorName,
+			&i.DebtorUsername,
 			&i.CreditorID,
 			&i.CreditorName,
+			&i.CreditorUsername,
 			&i.OriginalAmountMinor,
 			&i.RemainingAmountMinor,
 			&i.Status,
