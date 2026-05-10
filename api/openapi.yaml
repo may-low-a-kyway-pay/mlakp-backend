@@ -21,7 +21,7 @@ tags:
   - name: Debts
     description: Debt state transitions.
   - name: Payments
-    description: Payment marking and creditor review.
+    description: Payment marking, bulk marking, and creditor review.
   - name: Dashboard
     description: Current-user financial summaries.
 paths:
@@ -1331,7 +1331,7 @@ paths:
       tags:
         - Dashboard
       summary: Get dashboard snapshot
-      description: Returns current-user you_owe and you_get totals for accepted and partially settled debts plus the five most recent pending or active unsettled balances with remaining amount.
+      description: Returns current-user you_owe and you_get totals, per-person active balances with pending-payment review state, and the five most recent pending or active unsettled balances with remaining amount.
       security:
         - bearerAuth: []
       responses:
@@ -2466,6 +2466,7 @@ components:
         - remaining_amount
         - remaining_amount_minor
         - debt_count
+        - has_pending_payment
       properties:
         type:
           type: string
@@ -2482,6 +2483,9 @@ components:
         debt_count:
           type: integer
           format: int64
+        has_pending_payment:
+          type: boolean
+          description: True when at least one debt in this person balance has a payment waiting for creditor review.
     DashboardUnsettledBalance:
       type: object
       additionalProperties: false

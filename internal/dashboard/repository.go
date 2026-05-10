@@ -84,6 +84,7 @@ func personBalancesFromSQLC(rows []sqlc.ListDashboardPersonBalancesRow) []Person
 			OtherUserName:        row.OtherUserName,
 			RemainingAmountMinor: row.RemainingAmountMinor,
 			DebtCount:            row.DebtCount,
+			HasPendingPayment:    row.HasPendingPayment,
 		})
 	}
 

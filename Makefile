@@ -19,7 +19,7 @@ test-integration:
 		echo "Set MLAKP_TEST_DATABASE_URL or DATABASE_URL to run PostgreSQL integration tests"; \
 		exit 1; \
 	fi; \
-	GOCACHE=$(GOCACHE) go test ./internal/payments -run 'TestRepository.*Concurrent'
+	GOCACHE=$(GOCACHE) go test ./internal/payments -run 'TestRepository'
 
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './internal/postgres/sqlc/*')

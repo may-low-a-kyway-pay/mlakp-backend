@@ -18,6 +18,16 @@ func TestToDashboardResponseIncludesUnsettledBalances(t *testing.T) {
 			YouOwe: dashboard.DashboardAmount{AmountMinor: 1250, DebtCount: 1},
 			YouGet: dashboard.DashboardAmount{AmountMinor: 2000, DebtCount: 2},
 		},
+		PersonBalances: []dashboard.PersonBalance{
+			{
+				Type:                 "owed",
+				OtherUserID:          creditorID,
+				OtherUserName:        "Alice",
+				RemainingAmountMinor: 1250,
+				DebtCount:            1,
+				HasPendingPayment:    true,
+			},
+		},
 		UnsettledBalances: []dashboard.UnsettledBalance{
 			{
 				ID:                   "debt-owed",
@@ -51,6 +61,16 @@ func TestToDashboardResponseIncludesUnsettledBalances(t *testing.T) {
 	}
 	if got.YouGet.Amount != "20.00" || got.YouGet.AmountMinor != 2000 || got.YouGet.DebtCount != 2 {
 		t.Fatalf("YouGet = %+v, want formatted amount 20.00, minor 2000, count 2", got.YouGet)
+	}
+	if len(got.PersonBalances) != 1 {
+		t.Fatalf("len(PersonBalances) = %d, want 1", len(got.PersonBalances))
+	}
+	personBalance := got.PersonBalances[0]
+	if personBalance.Type != "owed" || personBalance.OtherUser.ID != creditorID || !personBalance.HasPending {
+		t.Fatalf("PersonBalances[0] = %+v, want owed Alice balance with pending payment", personBalance)
+	}
+	if personBalance.RemainingAmount != "12.50" || personBalance.RemainingMinor != 1250 || personBalance.DebtCount != 1 {
+		t.Fatalf("person balance amount/count = %s/%d/%d, want 12.50/1250/1", personBalance.RemainingAmount, personBalance.RemainingMinor, personBalance.DebtCount)
 	}
 	if len(got.UnsettledBalances) != 2 {
 		t.Fatalf("len(UnsettledBalances) = %d, want 2", len(got.UnsettledBalances))

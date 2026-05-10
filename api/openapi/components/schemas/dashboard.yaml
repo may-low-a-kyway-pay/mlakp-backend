@@ -57,6 +57,7 @@
         - remaining_amount
         - remaining_amount_minor
         - debt_count
+        - has_pending_payment
       properties:
         type:
           type: string
@@ -73,6 +74,9 @@
         debt_count:
           type: integer
           format: int64
+        has_pending_payment:
+          type: boolean
+          description: True when at least one debt in this person balance has a payment waiting for creditor review.
     DashboardUnsettledBalance:
       type: object
       additionalProperties: false

@@ -20,6 +20,6 @@ tags:
   - name: Debts
     description: Debt state transitions.
   - name: Payments
-    description: Payment marking and creditor review.
+    description: Payment marking, bulk marking, and creditor review.
   - name: Dashboard
     description: Current-user financial summaries.

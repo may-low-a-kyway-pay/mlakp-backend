@@ -116,6 +116,7 @@ func (r *Repository) BulkMark(ctx context.Context, params bulkMarkParams) ([]Pay
 			break
 		}
 
+		// Allocate across locked debts in query order so partial bulk payments are deterministic.
 		amount := debt.RemainingAmountMinor
 		if amount > remaining {
 			amount = remaining
