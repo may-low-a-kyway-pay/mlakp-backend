@@ -3,7 +3,7 @@
       tags:
         - Dashboard
       summary: Get dashboard snapshot
-      description: Returns current-user you_owe and you_get totals, per-person active balances with pending-payment review state, and the five most recent pending or active unsettled balances with remaining amount.
+      description: Returns current-user you_owe and you_get totals, per-person active balances with pending-payment review state, and an action-prioritized preview of up to five pending or active unsettled balances with remaining amount.
       security:
         - bearerAuth: []
       responses:
