@@ -41,7 +41,11 @@ JOIN users creditor ON creditor.id = d.creditor_id
 WHERE (d.debtor_id = $1 OR d.creditor_id = $1)
   AND d.status IN ('pending', 'accepted', 'partially_settled')
   AND d.remaining_amount_minor > 0
-ORDER BY d.updated_at DESC, d.created_at DESC, d.id DESC
+ORDER BY
+    CASE WHEN d.debtor_id = $1 AND d.status = 'pending' THEN 0 ELSE 1 END,
+    d.updated_at DESC,
+    d.created_at DESC,
+    d.id DESC
 LIMIT 5;
 
 -- name: ListDashboardPersonBalances :many
