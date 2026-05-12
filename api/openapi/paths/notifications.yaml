@@ -1,0 +1,95 @@
+  /v1/notifications:
+    get:
+      tags:
+        - Notifications
+      summary: List current-user notifications
+      description: Returns recent notifications for the authenticated user with the current unread count.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Current-user notifications.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/notifications/{notificationID}/read:
+    post:
+      tags:
+        - Notifications
+      summary: Mark notification read
+      description: Marks one notification as read when it belongs to the authenticated user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: notificationID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Notification marked read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationReadResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/notifications/read-all:
+    post:
+      tags:
+        - Notifications
+      summary: Mark all notifications read
+      description: Marks all unread notifications for the authenticated user as read.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All notifications marked read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationsReadAllResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/realtime:
+    get:
+      tags:
+        - Notifications
+      summary: Open realtime notification stream
+      description: Upgrades to a WebSocket connection and pushes notification events for the authenticated user. Native clients should send a Bearer token header; browser clients may send the short-lived access token as `access_token`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: access_token
+          schema:
+            type: string
+          description: Optional access-token fallback for browser WebSocket clients that cannot send Authorization headers.
+      responses:
+        "101":
+          description: WebSocket upgrade accepted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"

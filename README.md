@@ -180,10 +180,23 @@ The sixth migration adds:
 - username uniqueness constraint
 - username prefix-search index
 
+The seventh migration creates:
+
+- `notifications` table
+- unread notification lookup index
+- user notification history index
+
 To roll back one migration:
 
 ```sh
 make migrate-down
+```
+
+To intentionally wipe all database objects and data before replaying migrations from scratch:
+
+```sh
+make reset-db CONFIRM_RESET=reset
+make migrate-up
 ```
 
 ## Run The API
@@ -495,6 +508,7 @@ internal/expenses/              Expense creation and debt generation
 internal/debts/                 Debt state transitions and rejected-debt review
 internal/payments/              Payment listing, marking, and creditor review
 internal/dashboard/             Current-user financial summaries
+internal/notifications/         Persistent notifications and realtime fanout
 internal/postgres/              PostgreSQL pool setup
 internal/postgres/sqlc/         Generated sqlc database code
 queries/                        SQL queries consumed by sqlc

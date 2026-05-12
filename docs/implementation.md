@@ -24,6 +24,7 @@ Primary principles:
 - Password hashing: bcrypt from `golang.org/x/crypto/bcrypt`
 - Authentication: short-lived signed access tokens using the Go standard library
 - API contract: OpenAPI 3 document, bundled from split YAML source files, not a runtime dependency
+- Realtime transport: WebSocket fanout for foreground notification delivery
 
 ### Why Not Prisma Client Go
 
@@ -63,6 +64,10 @@ Use third-party dependencies only where justified:
 
 - `golang.org/x/crypto/bcrypt`
   - Required because the standard library does not provide bcrypt.
+
+- `github.com/coder/websocket`
+  - Required because the Go standard library does not implement the WebSocket protocol.
+  - Use only at the realtime edge; keep business notification creation behind service interfaces and persisted database rows.
 
 Do not add runtime dependencies for:
 - Routing.
@@ -161,16 +166,8 @@ mlakp-backend/
 │       ├── db.go
 │       └── sqlc/
 ├── migrations/
-│   ├── 000001_init.up.sql
-│   ├── 000001_init.down.sql
-│   ├── 000002_auth_sessions.up.sql
-│   ├── 000002_auth_sessions.down.sql
-│   ├── 000003_groups.up.sql
-│   ├── 000003_groups.down.sql
-│   ├── 000004_expenses.up.sql
-│   ├── 000004_expenses.down.sql
-│   ├── 000005_payments.up.sql
-│   └── 000005_payments.down.sql
+│   ├── <timestamp>_<name>.up.sql
+│   └── <timestamp>_<name>.down.sql
 ├── queries/
 │   ├── users.sql
 │   ├── auth_sessions.sql

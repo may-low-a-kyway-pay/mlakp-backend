@@ -406,6 +406,8 @@ For future releases:
 
 Do not run production migrations manually from local unless you are intentionally doing an emergency operation.
 
+After renaming migrations in a testing database, reset that database before running the release workflow; the workflow only runs `migrate up`.
+
 ## 7. Failure Handling
 
 ### 7.1 Tests Fail

@@ -15,19 +15,20 @@ import (
 )
 
 type RouterDeps struct {
-	AuthHandler      *handlers.AuthHandler
-	UserHandler      *handlers.UserHandler
-	GroupHandler     *handlers.GroupHandler
-	ExpenseHandler   *handlers.ExpenseHandler
-	DebtHandler      *handlers.DebtHandler
-	PaymentHandler   *handlers.PaymentHandler
-	DashboardHandler *handlers.DashboardHandler
-	TokenManager     *auth.TokenManager
-	SessionService   *sessions.Service
-	AppEnv           string
-	CORSOrigins      []string
-	AuthRateLimiter  *middleware.RateLimiter
-	ReadinessChecker interface {
+	AuthHandler         *handlers.AuthHandler
+	UserHandler         *handlers.UserHandler
+	GroupHandler        *handlers.GroupHandler
+	ExpenseHandler      *handlers.ExpenseHandler
+	DebtHandler         *handlers.DebtHandler
+	PaymentHandler      *handlers.PaymentHandler
+	DashboardHandler    *handlers.DashboardHandler
+	NotificationHandler *handlers.NotificationHandler
+	TokenManager        *auth.TokenManager
+	SessionService      *sessions.Service
+	AppEnv              string
+	CORSOrigins         []string
+	AuthRateLimiter     *middleware.RateLimiter
+	ReadinessChecker    interface {
 		Ping(context.Context) error
 	}
 }
@@ -92,6 +93,14 @@ func NewRouter(logger *slog.Logger, deps RouterDeps) http.Handler {
 	if deps.DashboardHandler != nil && deps.TokenManager != nil {
 		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
 		mux.Handle("GET /v1/dashboard", authenticated(http.HandlerFunc(deps.DashboardHandler.Get)))
+	}
+	if deps.NotificationHandler != nil && deps.TokenManager != nil {
+		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
+		realtimeAuthenticated := middleware.AuthenticateRealtime(deps.TokenManager, deps.SessionService)
+		mux.Handle("GET /v1/notifications", authenticated(http.HandlerFunc(deps.NotificationHandler.List)))
+		mux.Handle("POST /v1/notifications/read-all", authenticated(http.HandlerFunc(deps.NotificationHandler.MarkAllRead)))
+		mux.Handle("POST /v1/notifications/{notificationID}/read", authenticated(http.HandlerFunc(deps.NotificationHandler.MarkRead)))
+		mux.Handle("GET /v1/realtime", realtimeAuthenticated(http.HandlerFunc(deps.NotificationHandler.Realtime)))
 	}
 
 	handler := cors(deps.CORSOrigins)(mux)

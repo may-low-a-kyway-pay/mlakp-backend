@@ -73,6 +73,19 @@ type GroupMember struct {
 	JoinedAt pgtype.Timestamptz
 }
 
+type Notification struct {
+	ID         pgtype.UUID
+	UserID     pgtype.UUID
+	Type       string
+	Title      string
+	Body       string
+	EntityType string
+	EntityID   pgtype.UUID
+	Metadata   []byte
+	ReadAt     pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+}
+
 type Payment struct {
 	ID          pgtype.UUID
 	DebtID      pgtype.UUID

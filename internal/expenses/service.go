@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"mlakp-backend/internal/money"
+	"mlakp-backend/internal/notifications"
 )
 
 var (
@@ -37,12 +38,21 @@ type Store interface {
 	ListByGroup(ctx context.Context, groupID, userID string) ([]Expense, error)
 }
 
-type Service struct {
-	store Store
+type Notifier interface {
+	Create(ctx context.Context, input notifications.CreateInput) (notifications.Notification, error)
 }
 
-func NewService(store Store) *Service {
-	return &Service{store: store}
+type Service struct {
+	store    Store
+	notifier Notifier
+}
+
+func NewService(store Store, notifiers ...Notifier) *Service {
+	service := &Service{store: store}
+	if len(notifiers) > 0 {
+		service.notifier = notifiers[0]
+	}
+	return service
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (CreatedExpense, error) {
@@ -51,7 +61,23 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (CreatedExpense
 		return CreatedExpense{}, err
 	}
 
-	return s.store.Create(ctx, params)
+	created, err := s.store.Create(ctx, params)
+	if err != nil {
+		return CreatedExpense{}, err
+	}
+
+	for _, debt := range created.Debts {
+		s.createNotification(ctx, notifications.CreateInput{
+			UserID:     debt.DebtorID,
+			Type:       notifications.TypeExpenseCreated,
+			Title:      "New expense to review",
+			Body:       "A shared expense is waiting for your review.",
+			EntityType: notifications.EntityExpense,
+			EntityID:   created.Expense.ID,
+		})
+	}
+
+	return created, nil
 }
 
 func (s *Service) Get(ctx context.Context, input GetInput) (ExpenseDetails, error) {
@@ -236,6 +262,15 @@ func normalizeOptionalString(value *string) *string {
 		return nil
 	}
 	return &trimmed
+}
+
+func (s *Service) createNotification(ctx context.Context, input notifications.CreateInput) {
+	if s.notifier == nil {
+		return
+	}
+
+	// Notification delivery must not turn an already committed expense into an API failure.
+	_, _ = s.notifier.Create(ctx, input)
 }
 
 func normalizeReceiptURL(value *string) (*string, error) {

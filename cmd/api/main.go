@@ -19,6 +19,7 @@ import (
 	"mlakp-backend/internal/expenses"
 	"mlakp-backend/internal/groups"
 	"mlakp-backend/internal/httpapi/handlers"
+	"mlakp-backend/internal/notifications"
 	"mlakp-backend/internal/payments"
 	"mlakp-backend/internal/postgres"
 	"mlakp-backend/internal/postgres/sqlc"
@@ -56,30 +57,34 @@ func main() {
 	sessionService := sessions.NewService(sessionRepository, cfg.RefreshTokenTTL)
 	groupRepository := groups.NewRepository(dbPool, queries)
 	groupService := groups.NewService(groupRepository)
+	notificationHub := notifications.NewHub()
+	notificationRepository := notifications.NewRepository(queries)
+	notificationService := notifications.NewService(notificationRepository, notificationHub)
 	expenseRepository := expenses.NewRepository(dbPool, queries)
-	expenseService := expenses.NewService(expenseRepository)
+	expenseService := expenses.NewService(expenseRepository, notificationService)
 	debtRepository := debts.NewRepository(queries)
-	debtService := debts.NewService(debtRepository)
+	debtService := debts.NewService(debtRepository, notificationService)
 	paymentRepository := payments.NewRepository(dbPool, queries)
-	paymentService := payments.NewService(paymentRepository)
+	paymentService := payments.NewService(paymentRepository, notificationService)
 	dashboardRepository := dashboard.NewRepository(queries)
 	dashboardService := dashboard.NewService(dashboardRepository)
 
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%s", cfg.AppPort),
 		Handler: app.NewRouter(logger, app.RouterDeps{
-			AuthHandler:      handlers.NewAuthHandler(userService, tokenManager, sessionService),
-			UserHandler:      handlers.NewUserHandler(userService),
-			GroupHandler:     handlers.NewGroupHandler(groupService, userService),
-			ExpenseHandler:   handlers.NewExpenseHandler(expenseService),
-			DebtHandler:      handlers.NewDebtHandler(debtService),
-			PaymentHandler:   handlers.NewPaymentHandler(paymentService),
-			DashboardHandler: handlers.NewDashboardHandler(dashboardService),
-			TokenManager:     tokenManager,
-			SessionService:   sessionService,
-			AppEnv:           cfg.AppEnv,
-			CORSOrigins:      cfg.CORSOrigins,
-			ReadinessChecker: dbPool,
+			AuthHandler:         handlers.NewAuthHandler(userService, tokenManager, sessionService),
+			UserHandler:         handlers.NewUserHandler(userService),
+			GroupHandler:        handlers.NewGroupHandler(groupService, userService),
+			ExpenseHandler:      handlers.NewExpenseHandler(expenseService),
+			DebtHandler:         handlers.NewDebtHandler(debtService),
+			PaymentHandler:      handlers.NewPaymentHandler(paymentService),
+			DashboardHandler:    handlers.NewDashboardHandler(dashboardService),
+			NotificationHandler: handlers.NewNotificationHandler(notificationService, notificationHub, cfg.CORSOrigins),
+			TokenManager:        tokenManager,
+			SessionService:      sessionService,
+			AppEnv:              cfg.AppEnv,
+			CORSOrigins:         cfg.CORSOrigins,
+			ReadinessChecker:    dbPool,
 		}),
 		ReadTimeout:  cfg.ReadTimeout,
 		WriteTimeout: cfg.WriteTimeout,

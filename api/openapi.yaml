@@ -24,6 +24,8 @@ tags:
     description: Payment marking, bulk marking, and creditor review.
   - name: Dashboard
     description: Current-user financial summaries.
+  - name: Notifications
+    description: In-app notifications and realtime event delivery.
 paths:
   /healthz:
     get:
@@ -1345,6 +1347,101 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/InternalError"
+  /v1/notifications:
+    get:
+      tags:
+        - Notifications
+      summary: List current-user notifications
+      description: Returns recent notifications for the authenticated user with the current unread count.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Current-user notifications.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/notifications/{notificationID}/read:
+    post:
+      tags:
+        - Notifications
+      summary: Mark notification read
+      description: Marks one notification as read when it belongs to the authenticated user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: notificationID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Notification marked read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationReadResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/notifications/read-all:
+    post:
+      tags:
+        - Notifications
+      summary: Mark all notifications read
+      description: Marks all unread notifications for the authenticated user as read.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All notifications marked read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationsReadAllResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/realtime:
+    get:
+      tags:
+        - Notifications
+      summary: Open realtime notification stream
+      description: Upgrades to a WebSocket connection and pushes notification events for the authenticated user. Native clients should send a Bearer token header; browser clients may send the short-lived access token as `access_token`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: access_token
+          schema:
+            type: string
+          description: Optional access-token fallback for browser WebSocket clients that cannot send Authorization headers.
+      responses:
+        "101":
+          description: WebSocket upgrade accepted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     bearerAuth:
@@ -2566,3 +2663,146 @@ components:
           properties:
             dashboard:
               $ref: "#/components/schemas/Dashboard"
+    Notification:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - user_id
+        - type
+        - title
+        - body
+        - entity_type
+        - entity_id
+        - metadata
+        - read_at
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - expense.created
+            - debt.accepted
+            - debt.rejected
+            - debt.resent
+            - payment.marked
+            - payment.confirmed
+            - payment.rejected
+        title:
+          type: string
+        body:
+          type: string
+        entity_type:
+          type: string
+          enum:
+            - expense
+            - debt
+            - payment
+        entity_id:
+          type: string
+          format: uuid
+        metadata:
+          type: object
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    NotificationsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - notifications
+            - unread_count
+          properties:
+            notifications:
+              type: array
+              items:
+                $ref: "#/components/schemas/Notification"
+            unread_count:
+              type: integer
+              format: int64
+              minimum: 0
+    NotificationReadResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - notification
+            - unread_count
+          properties:
+            notification:
+              $ref: "#/components/schemas/Notification"
+            unread_count:
+              type: integer
+              format: int64
+              minimum: 0
+    NotificationsReadAllResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - unread_count
+          properties:
+            unread_count:
+              type: integer
+              format: int64
+              minimum: 0
+    RealtimeNotificationEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - unread_count
+      properties:
+        kind:
+          type: string
+          enum:
+            - notification.created
+            - notification.read
+            - notifications.read_all
+        notification:
+          $ref: "#/components/schemas/Notification"
+        unread_count:
+          type: integer
+          format: int64
+          minimum: 0

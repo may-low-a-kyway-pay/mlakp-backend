@@ -171,7 +171,22 @@ Dashboard rules:
 
 ---
 
-### 3.8 Expense Changes
+### 3.8 Notifications
+
+Users receive in-app notifications when another user creates or changes financial work that needs their attention.
+
+Notification rules:
+- Expense creation notifies each debtor generated from the expense.
+- Debt acceptance or rejection notifies the expense payer/creditor.
+- Rejected-debt review/resend notifies the debtor.
+- Payment marking notifies the receiver/creditor.
+- Payment confirmation or rejection notifies the payer/debtor.
+- Notifications must be persisted so users can recover history after being offline.
+- Foreground clients can receive realtime notification events and refresh affected dashboard, debt, and payment views.
+
+---
+
+### 3.9 Expense Changes
 
 For MVP:
 - Expenses cannot be edited after creation.

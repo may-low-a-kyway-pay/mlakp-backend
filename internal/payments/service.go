@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"mlakp-backend/internal/money"
+	"mlakp-backend/internal/notifications"
 )
 
 var (
@@ -33,12 +34,21 @@ type Store interface {
 	Reject(ctx context.Context, paymentID, userID string) (Payment, error)
 }
 
-type Service struct {
-	store Store
+type Notifier interface {
+	Create(ctx context.Context, input notifications.CreateInput) (notifications.Notification, error)
 }
 
-func NewService(store Store) *Service {
-	return &Service{store: store}
+type Service struct {
+	store    Store
+	notifier Notifier
+}
+
+func NewService(store Store, notifiers ...Notifier) *Service {
+	service := &Service{store: store}
+	if len(notifiers) > 0 {
+		service.notifier = notifiers[0]
+	}
+	return service
 }
 
 func (s *Service) Mark(ctx context.Context, input MarkInput) (Payment, error) {
@@ -47,7 +57,13 @@ func (s *Service) Mark(ctx context.Context, input MarkInput) (Payment, error) {
 		return Payment{}, err
 	}
 
-	return s.store.Mark(ctx, params)
+	payment, err := s.store.Mark(ctx, params)
+	if err != nil {
+		return Payment{}, err
+	}
+
+	s.notifyPaymentMarked(ctx, payment)
+	return payment, nil
 }
 
 func (s *Service) BulkMark(ctx context.Context, input BulkMarkInput) ([]Payment, error) {
@@ -56,7 +72,16 @@ func (s *Service) BulkMark(ctx context.Context, input BulkMarkInput) ([]Payment,
 		return nil, err
 	}
 
-	return s.store.BulkMark(ctx, params)
+	payments, err := s.store.BulkMark(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, payment := range payments {
+		s.notifyPaymentMarked(ctx, payment)
+	}
+
+	return payments, nil
 }
 
 func (s *Service) List(ctx context.Context, input ListInput) ([]ListItem, error) {
@@ -74,7 +99,7 @@ func (s *Service) Confirm(ctx context.Context, input ReviewInput) (Payment, erro
 		return Payment{}, err
 	}
 
-	return s.store.Confirm(ctx, paymentID, userID)
+	return s.reviewPayment(ctx, paymentID, userID, ReviewTypeConfirm)
 }
 
 func (s *Service) Reject(ctx context.Context, input ReviewInput) (Payment, error) {
@@ -83,7 +108,7 @@ func (s *Service) Reject(ctx context.Context, input ReviewInput) (Payment, error
 		return Payment{}, err
 	}
 
-	return s.store.Reject(ctx, paymentID, userID)
+	return s.reviewPayment(ctx, paymentID, userID, ReviewTypeReject)
 }
 
 func (s *Service) Review(ctx context.Context, input ReviewInput) (Payment, error) {
@@ -92,11 +117,39 @@ func (s *Service) Review(ctx context.Context, input ReviewInput) (Payment, error
 		return Payment{}, err
 	}
 
+	return s.reviewPayment(ctx, paymentID, userID, reviewType)
+}
+
+func (s *Service) reviewPayment(ctx context.Context, paymentID, userID, reviewType string) (Payment, error) {
 	switch reviewType {
 	case ReviewTypeConfirm:
-		return s.store.Confirm(ctx, paymentID, userID)
+		payment, err := s.store.Confirm(ctx, paymentID, userID)
+		if err != nil {
+			return Payment{}, err
+		}
+		s.createNotification(ctx, notifications.CreateInput{
+			UserID:     payment.PaidBy,
+			Type:       notifications.TypePaymentConfirmed,
+			Title:      "Payment confirmed",
+			Body:       "Your payment was confirmed.",
+			EntityType: notifications.EntityPayment,
+			EntityID:   payment.ID,
+		})
+		return payment, nil
 	case ReviewTypeReject:
-		return s.store.Reject(ctx, paymentID, userID)
+		payment, err := s.store.Reject(ctx, paymentID, userID)
+		if err != nil {
+			return Payment{}, err
+		}
+		s.createNotification(ctx, notifications.CreateInput{
+			UserID:     payment.PaidBy,
+			Type:       notifications.TypePaymentRejected,
+			Title:      "Payment rejected",
+			Body:       "Your payment was rejected.",
+			EntityType: notifications.EntityPayment,
+			EntityID:   payment.ID,
+		})
+		return payment, nil
 	default:
 		return Payment{}, ErrInvalidReviewType
 	}
@@ -225,4 +278,24 @@ func normalizeOptionalString(value *string) *string {
 		return nil
 	}
 	return &trimmed
+}
+
+func (s *Service) notifyPaymentMarked(ctx context.Context, payment Payment) {
+	s.createNotification(ctx, notifications.CreateInput{
+		UserID:     payment.ReceivedBy,
+		Type:       notifications.TypePaymentMarked,
+		Title:      "Payment waiting for confirmation",
+		Body:       "A payment was submitted and needs your review.",
+		EntityType: notifications.EntityPayment,
+		EntityID:   payment.ID,
+	})
+}
+
+func (s *Service) createNotification(ctx context.Context, input notifications.CreateInput) {
+	if s.notifier == nil {
+		return
+	}
+
+	// Payment state changes remain successful even if notification fanout is delayed.
+	_, _ = s.notifier.Create(ctx, input)
 }

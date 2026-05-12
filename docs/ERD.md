@@ -35,6 +35,8 @@ erDiagram
     USERS ||--o{ PAYMENTS : pays
     USERS ||--o{ PAYMENTS : receives
 
+    USERS ||--o{ NOTIFICATIONS : receives
+
     USERS {
         uuid id PK
         text name
@@ -122,6 +124,19 @@ erDiagram
         timestamptz rejected_at
         timestamptz created_at
         timestamptz updated_at
+    }
+
+    NOTIFICATIONS {
+        uuid id PK
+        uuid user_id FK
+        text type
+        text title
+        text body
+        text entity_type
+        uuid entity_id
+        jsonb metadata
+        timestamptz read_at
+        timestamptz created_at
     }
 ```
 
@@ -292,6 +307,28 @@ Application rules:
 - Pending plus confirmed payments must not exceed the debt's current `remaining_amount_minor`.
 - Users may list only payments where they are `paid_by` or `received_by`.
 
+### notifications
+
+Required constraints:
+- `id uuid primary key default gen_random_uuid()`
+- `user_id uuid not null references users(id) on delete cascade`
+- `type text not null`
+- `title text not null`
+- `body text not null`
+- `entity_type text not null`
+- `entity_id uuid not null`
+- `metadata jsonb not null default '{}'::jsonb`
+- `read_at timestamptz null`
+- `created_at timestamptz not null default now()`
+- `check (length(type) between 1 and 80)`
+- `check (length(title) between 1 and 160)`
+- `check (length(body) between 1 and 500)`
+- `check (length(entity_type) between 1 and 80)`
+
+Application rules:
+- Notification rows are the source of truth for in-app history and unread counts.
+- Realtime delivery is a fanout mechanism; clients must still be able to recover missed events from `GET /v1/notifications`.
+
 ---
 
 ## 3. Required Indexes
@@ -310,6 +347,8 @@ create index idx_auth_sessions_user_active on auth_sessions(user_id, revoked_at)
 create index idx_payments_debt_status on payments(debt_id, status);
 create index idx_payments_paid_by on payments(paid_by);
 create index idx_payments_received_by on payments(received_by);
+create index idx_notifications_user_created on notifications(user_id, created_at desc);
+create index idx_notifications_user_unread on notifications(user_id, created_at desc) where read_at is null;
 ```
 
 ---
@@ -324,7 +363,8 @@ MVP delete behavior:
 
 Foreign key behavior:
 - Use `on delete restrict` for financial history tables.
-- Use `on delete cascade` only for membership rows when a group is deleted by an administrative or future lifecycle operation.
+- Use `on delete cascade` for membership rows when a group is deleted by an administrative or future lifecycle operation.
+- Use `on delete cascade` for notification rows if their owning user is deleted by an administrative or future lifecycle operation.
 
 ---
 
