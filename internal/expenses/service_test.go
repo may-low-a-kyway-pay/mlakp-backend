@@ -2,8 +2,11 @@ package expenses
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
+
+	"mlakp-backend/internal/notifications"
 )
 
 func TestServiceCreateEqualSplit(t *testing.T) {
@@ -66,6 +69,55 @@ func TestServiceCreateManualSplit(t *testing.T) {
 
 	if got := store.params.Participants[1].ShareMinor; got != 6000 {
 		t.Fatalf("manual share = %d, want 6000", got)
+	}
+}
+
+func TestServiceCreateNotifiesDebtorsWithDebtActionTarget(t *testing.T) {
+	store := &fakeStore{
+		created: CreatedExpense{
+			Expense: Expense{ID: "expense-1"},
+			Debts: []Debt{
+				{ID: "debt-1", DebtorID: "user-2"},
+				{ID: "debt-2", DebtorID: "user-3"},
+			},
+		},
+	}
+	notifier := &fakeNotifier{}
+	service := NewService(store, notifier)
+
+	_, err := service.Create(context.Background(), validCreateInput(func(input *CreateInput) {
+		input.Participants = []ParticipantInput{
+			{UserID: "payer-1"},
+			{UserID: "user-2"},
+			{UserID: "user-3"},
+		}
+	}))
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	if len(notifier.inputs) != 2 {
+		t.Fatalf("notifications = %d, want 2", len(notifier.inputs))
+	}
+
+	for i, input := range notifier.inputs {
+		if input.Type != notifications.TypeExpenseCreated {
+			t.Fatalf("notification[%d].Type = %q, want %q", i, input.Type, notifications.TypeExpenseCreated)
+		}
+		if input.EntityType != notifications.EntityDebt {
+			t.Fatalf("notification[%d].EntityType = %q, want %q", i, input.EntityType, notifications.EntityDebt)
+		}
+		if input.EntityID != store.created.Debts[i].ID {
+			t.Fatalf("notification[%d].EntityID = %q, want debt id %q", i, input.EntityID, store.created.Debts[i].ID)
+		}
+
+		var metadata map[string]string
+		if err := json.Unmarshal(input.Metadata, &metadata); err != nil {
+			t.Fatalf("notification[%d].Metadata invalid JSON: %v", i, err)
+		}
+		if metadata["expense_id"] != "expense-1" {
+			t.Fatalf("notification[%d].Metadata expense_id = %q, want expense-1", i, metadata["expense_id"])
+		}
 	}
 }
 
@@ -170,6 +222,7 @@ func TestServiceListByGroupValidatesAndTrimsInput(t *testing.T) {
 
 type fakeStore struct {
 	params    createParams
+	created   CreatedExpense
 	expenseID string
 	groupID   string
 	userID    string
@@ -177,7 +230,7 @@ type fakeStore struct {
 
 func (s *fakeStore) Create(_ context.Context, params createParams) (CreatedExpense, error) {
 	s.params = params
-	return CreatedExpense{}, nil
+	return s.created, nil
 }
 
 func (s *fakeStore) Get(_ context.Context, expenseID, userID string) (ExpenseDetails, error) {
@@ -216,4 +269,13 @@ func validCreateInput(mutators ...func(*CreateInput)) CreateInput {
 
 func stringPtr(value string) *string {
 	return &value
+}
+
+type fakeNotifier struct {
+	inputs []notifications.CreateInput
+}
+
+func (n *fakeNotifier) Create(_ context.Context, input notifications.CreateInput) (notifications.Notification, error) {
+	n.inputs = append(n.inputs, input)
+	return notifications.Notification{}, nil
 }

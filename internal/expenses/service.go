@@ -2,6 +2,7 @@ package expenses
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/url"
 	"strings"
@@ -67,13 +68,21 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (CreatedExpense
 	}
 
 	for _, debt := range created.Debts {
+		metadata, err := json.Marshal(map[string]string{
+			"expense_id": created.Expense.ID,
+		})
+		if err != nil {
+			metadata = []byte("{}")
+		}
+
 		s.createNotification(ctx, notifications.CreateInput{
 			UserID:     debt.DebtorID,
 			Type:       notifications.TypeExpenseCreated,
 			Title:      "New expense to review",
 			Body:       "A shared expense is waiting for your review.",
-			EntityType: notifications.EntityExpense,
-			EntityID:   created.Expense.ID,
+			EntityType: notifications.EntityDebt,
+			EntityID:   debt.ID,
+			Metadata:   metadata,
 		})
 	}
 
