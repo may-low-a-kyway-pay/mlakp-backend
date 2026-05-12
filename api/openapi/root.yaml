@@ -23,3 +23,5 @@ tags:
     description: Payment marking, bulk marking, and creditor review.
   - name: Dashboard
     description: Current-user financial summaries.
+  - name: Notifications
+    description: In-app notifications and realtime event delivery.

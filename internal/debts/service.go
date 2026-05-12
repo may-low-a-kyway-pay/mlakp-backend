@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"mlakp-backend/internal/money"
+	"mlakp-backend/internal/notifications"
 )
 
 var (
@@ -27,12 +28,21 @@ type Store interface {
 	ListForUser(ctx context.Context, filters ListFilters) ([]ListItem, error)
 }
 
-type Service struct {
-	store Store
+type Notifier interface {
+	Create(ctx context.Context, input notifications.CreateInput) (notifications.Notification, error)
 }
 
-func NewService(store Store) *Service {
-	return &Service{store: store}
+type Service struct {
+	store    Store
+	notifier Notifier
+}
+
+func NewService(store Store, notifiers ...Notifier) *Service {
+	service := &Service{store: store}
+	if len(notifiers) > 0 {
+		service.notifier = notifiers[0]
+	}
+	return service
 }
 
 func (s *Service) Transition(ctx context.Context, debtID, debtorID, transitionType string) (Debt, error) {
@@ -43,9 +53,33 @@ func (s *Service) Transition(ctx context.Context, debtID, debtorID, transitionTy
 
 	switch strings.TrimSpace(transitionType) {
 	case TransitionAccept:
-		return s.store.Accept(ctx, debtID, debtorID)
+		debt, err := s.store.Accept(ctx, debtID, debtorID)
+		if err != nil {
+			return Debt{}, err
+		}
+		s.createNotification(ctx, notifications.CreateInput{
+			UserID:     debt.CreditorID,
+			Type:       notifications.TypeDebtAccepted,
+			Title:      "Expense accepted",
+			Body:       "A shared expense was accepted.",
+			EntityType: notifications.EntityDebt,
+			EntityID:   debt.ID,
+		})
+		return debt, nil
 	case TransitionReject:
-		return s.store.Reject(ctx, debtID, debtorID)
+		debt, err := s.store.Reject(ctx, debtID, debtorID)
+		if err != nil {
+			return Debt{}, err
+		}
+		s.createNotification(ctx, notifications.CreateInput{
+			UserID:     debt.CreditorID,
+			Type:       notifications.TypeDebtRejected,
+			Title:      "Expense rejected",
+			Body:       "A shared expense was rejected and needs review.",
+			EntityType: notifications.EntityDebt,
+			EntityID:   debt.ID,
+		})
+		return debt, nil
 	default:
 		return Debt{}, ErrInvalidType
 	}
@@ -57,7 +91,21 @@ func (s *Service) ReviewRejected(ctx context.Context, input ReviewRejectedInput)
 		return Debt{}, err
 	}
 
-	return s.store.ReviewRejected(ctx, params)
+	debt, err := s.store.ReviewRejected(ctx, params)
+	if err != nil {
+		return Debt{}, err
+	}
+
+	s.createNotification(ctx, notifications.CreateInput{
+		UserID:     debt.DebtorID,
+		Type:       notifications.TypeDebtResent,
+		Title:      "Expense sent back for review",
+		Body:       "A rejected expense was reviewed and is waiting for your response.",
+		EntityType: notifications.EntityDebt,
+		EntityID:   debt.ID,
+	})
+
+	return debt, nil
 }
 
 func (s *Service) List(ctx context.Context, input ListInput) ([]ListItem, error) {
@@ -138,4 +186,13 @@ func validateReviewRejectedInput(input ReviewRejectedInput) (ReviewRejectedParam
 	}
 
 	return params, nil
+}
+
+func (s *Service) createNotification(ctx context.Context, input notifications.CreateInput) {
+	if s.notifier == nil {
+		return
+	}
+
+	// Debt transitions are authoritative even if notification delivery is temporarily unavailable.
+	_, _ = s.notifier.Create(ctx, input)
 }
