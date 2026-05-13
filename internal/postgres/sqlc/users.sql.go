@@ -14,7 +14,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (name, username, email, password_hash)
 VALUES ($1, $2, $3, $4)
-RETURNING id, name, username, email, password_hash, created_at, updated_at
+RETURNING id, name, username, email, password_hash, email_verified_at, verification_deadline, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -25,13 +25,15 @@ type CreateUserParams struct {
 }
 
 type CreateUserRow struct {
-	ID           pgtype.UUID
-	Name         string
-	Username     string
-	Email        string
-	PasswordHash string
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID                   pgtype.UUID
+	Name                 string
+	Username             string
+	Email                string
+	PasswordHash         string
+	EmailVerifiedAt      pgtype.Timestamptz
+	VerificationDeadline pgtype.Timestamptz
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
@@ -48,6 +50,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		&i.Username,
 		&i.Email,
 		&i.PasswordHash,
+		&i.EmailVerifiedAt,
+		&i.VerificationDeadline,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -55,19 +59,21 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, username, email, password_hash, created_at, updated_at
+SELECT id, name, username, email, password_hash, email_verified_at, verification_deadline, created_at, updated_at
 FROM users
 WHERE email = $1
 `
 
 type GetUserByEmailRow struct {
-	ID           pgtype.UUID
-	Name         string
-	Username     string
-	Email        string
-	PasswordHash string
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID                   pgtype.UUID
+	Name                 string
+	Username             string
+	Email                string
+	PasswordHash         string
+	EmailVerifiedAt      pgtype.Timestamptz
+	VerificationDeadline pgtype.Timestamptz
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
 }
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
@@ -79,6 +85,8 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 		&i.Username,
 		&i.Email,
 		&i.PasswordHash,
+		&i.EmailVerifiedAt,
+		&i.VerificationDeadline,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -86,19 +94,21 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, username, email, password_hash, created_at, updated_at
+SELECT id, name, username, email, password_hash, email_verified_at, verification_deadline, created_at, updated_at
 FROM users
 WHERE id = $1
 `
 
 type GetUserByIDRow struct {
-	ID           pgtype.UUID
-	Name         string
-	Username     string
-	Email        string
-	PasswordHash string
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID                   pgtype.UUID
+	Name                 string
+	Username             string
+	Email                string
+	PasswordHash         string
+	EmailVerifiedAt      pgtype.Timestamptz
+	VerificationDeadline pgtype.Timestamptz
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDRow, error) {
@@ -110,6 +120,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDR
 		&i.Username,
 		&i.Email,
 		&i.PasswordHash,
+		&i.EmailVerifiedAt,
+		&i.VerificationDeadline,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -117,19 +129,21 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDR
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, name, username, email, password_hash, created_at, updated_at
+SELECT id, name, username, email, password_hash, email_verified_at, verification_deadline, created_at, updated_at
 FROM users
 WHERE username = $1
 `
 
 type GetUserByUsernameRow struct {
-	ID           pgtype.UUID
-	Name         string
-	Username     string
-	Email        string
-	PasswordHash string
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID                   pgtype.UUID
+	Name                 string
+	Username             string
+	Email                string
+	PasswordHash         string
+	EmailVerifiedAt      pgtype.Timestamptz
+	VerificationDeadline pgtype.Timestamptz
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
 }
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error) {
@@ -141,6 +155,42 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 		&i.Username,
 		&i.Email,
 		&i.PasswordHash,
+		&i.EmailVerifiedAt,
+		&i.VerificationDeadline,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const markEmailVerified = `-- name: MarkEmailVerified :one
+UPDATE users
+SET email_verified_at = now()
+WHERE id = $1
+RETURNING id, name, username, email, email_verified_at, verification_deadline, created_at, updated_at
+`
+
+type MarkEmailVerifiedRow struct {
+	ID                   pgtype.UUID
+	Name                 string
+	Username             string
+	Email                string
+	EmailVerifiedAt      pgtype.Timestamptz
+	VerificationDeadline pgtype.Timestamptz
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+}
+
+func (q *Queries) MarkEmailVerified(ctx context.Context, id pgtype.UUID) (MarkEmailVerifiedRow, error) {
+	row := q.db.QueryRow(ctx, markEmailVerified, id)
+	var i MarkEmailVerifiedRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Username,
+		&i.Email,
+		&i.EmailVerifiedAt,
+		&i.VerificationDeadline,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -148,7 +198,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 }
 
 const searchUsersByUsername = `-- name: SearchUsersByUsername :many
-SELECT id, name, username, email, password_hash, created_at, updated_at
+SELECT id, name, username, email, password_hash, email_verified_at, verification_deadline, created_at, updated_at
 FROM users
 WHERE username LIKE replace($1::text, '_', '\_') || '%' ESCAPE '\'
 ORDER BY username ASC
@@ -161,13 +211,15 @@ type SearchUsersByUsernameParams struct {
 }
 
 type SearchUsersByUsernameRow struct {
-	ID           pgtype.UUID
-	Name         string
-	Username     string
-	Email        string
-	PasswordHash string
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID                   pgtype.UUID
+	Name                 string
+	Username             string
+	Email                string
+	PasswordHash         string
+	EmailVerifiedAt      pgtype.Timestamptz
+	VerificationDeadline pgtype.Timestamptz
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
 }
 
 // Treat underscores as literal username characters instead of SQL LIKE wildcards.
@@ -186,6 +238,8 @@ func (q *Queries) SearchUsersByUsername(ctx context.Context, arg SearchUsersByUs
 			&i.Username,
 			&i.Email,
 			&i.PasswordHash,
+			&i.EmailVerifiedAt,
+			&i.VerificationDeadline,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -199,11 +253,27 @@ func (q *Queries) SearchUsersByUsername(ctx context.Context, arg SearchUsersByUs
 	return items, nil
 }
 
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users
+SET password_hash = $2
+WHERE id = $1
+`
+
+type UpdateUserPasswordParams struct {
+	ID           pgtype.UUID
+	PasswordHash string
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
+	return err
+}
+
 const updateUserUsername = `-- name: UpdateUserUsername :one
 UPDATE users
 SET username = $2
 WHERE id = $1
-RETURNING id, name, username, email, password_hash, created_at, updated_at
+RETURNING id, name, username, email, password_hash, email_verified_at, verification_deadline, created_at, updated_at
 `
 
 type UpdateUserUsernameParams struct {
@@ -212,13 +282,15 @@ type UpdateUserUsernameParams struct {
 }
 
 type UpdateUserUsernameRow struct {
-	ID           pgtype.UUID
-	Name         string
-	Username     string
-	Email        string
-	PasswordHash string
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID                   pgtype.UUID
+	Name                 string
+	Username             string
+	Email                string
+	PasswordHash         string
+	EmailVerifiedAt      pgtype.Timestamptz
+	VerificationDeadline pgtype.Timestamptz
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
 }
 
 func (q *Queries) UpdateUserUsername(ctx context.Context, arg UpdateUserUsernameParams) (UpdateUserUsernameRow, error) {
@@ -230,6 +302,8 @@ func (q *Queries) UpdateUserUsername(ctx context.Context, arg UpdateUserUsername
 		&i.Username,
 		&i.Email,
 		&i.PasswordHash,
+		&i.EmailVerifiedAt,
+		&i.VerificationDeadline,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

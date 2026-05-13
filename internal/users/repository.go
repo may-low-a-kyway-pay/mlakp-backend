@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"time"
 
 	"mlakp-backend/internal/postgres/sqlc"
 
@@ -44,7 +45,7 @@ func (r *Repository) Create(ctx context.Context, name, username, email, password
 		return PrivateUser{}, err
 	}
 
-	return privateUserFromFields(user.ID, user.Name, user.Username, user.Email, user.PasswordHash, user.CreatedAt, user.UpdatedAt), nil
+	return privateUserFromFields(user.ID, user.Name, user.Username, user.Email, user.PasswordHash, user.EmailVerifiedAt, user.VerificationDeadline, user.CreatedAt, user.UpdatedAt), nil
 }
 
 func (r *Repository) GetByEmail(ctx context.Context, email string) (PrivateUser, error) {
@@ -56,7 +57,7 @@ func (r *Repository) GetByEmail(ctx context.Context, email string) (PrivateUser,
 		return PrivateUser{}, err
 	}
 
-	return privateUserFromFields(user.ID, user.Name, user.Username, user.Email, user.PasswordHash, user.CreatedAt, user.UpdatedAt), nil
+	return privateUserFromFields(user.ID, user.Name, user.Username, user.Email, user.PasswordHash, user.EmailVerifiedAt, user.VerificationDeadline, user.CreatedAt, user.UpdatedAt), nil
 }
 
 func (r *Repository) GetByID(ctx context.Context, id string) (User, error) {
@@ -73,7 +74,7 @@ func (r *Repository) GetByID(ctx context.Context, id string) (User, error) {
 		return User{}, err
 	}
 
-	return publicUserFromFields(user.ID, user.Name, user.Username, user.Email, user.CreatedAt, user.UpdatedAt), nil
+	return publicUserFromFields(user.ID, user.Name, user.Username, user.Email, user.EmailVerifiedAt, user.VerificationDeadline, user.CreatedAt, user.UpdatedAt), nil
 }
 
 func (r *Repository) GetByUsername(ctx context.Context, username string) (User, error) {
@@ -85,7 +86,7 @@ func (r *Repository) GetByUsername(ctx context.Context, username string) (User, 
 		return User{}, err
 	}
 
-	return publicUserFromFields(user.ID, user.Name, user.Username, user.Email, user.CreatedAt, user.UpdatedAt), nil
+	return publicUserFromFields(user.ID, user.Name, user.Username, user.Email, user.EmailVerifiedAt, user.VerificationDeadline, user.CreatedAt, user.UpdatedAt), nil
 }
 
 func (r *Repository) SearchByUsername(ctx context.Context, query string, limit int32) ([]User, error) {
@@ -99,7 +100,7 @@ func (r *Repository) SearchByUsername(ctx context.Context, query string, limit i
 
 	users := make([]User, 0, len(rows))
 	for _, row := range rows {
-		users = append(users, publicUserFromFields(row.ID, row.Name, row.Username, row.Email, row.CreatedAt, row.UpdatedAt))
+		users = append(users, publicUserFromFields(row.ID, row.Name, row.Username, row.Email, row.EmailVerifiedAt, row.VerificationDeadline, row.CreatedAt, row.UpdatedAt))
 	}
 
 	return users, nil
@@ -125,7 +126,45 @@ func (r *Repository) UpdateUsername(ctx context.Context, id, username string) (U
 		return User{}, err
 	}
 
-	return publicUserFromFields(user.ID, user.Name, user.Username, user.Email, user.CreatedAt, user.UpdatedAt), nil
+	return publicUserFromFields(user.ID, user.Name, user.Username, user.Email, user.EmailVerifiedAt, user.VerificationDeadline, user.CreatedAt, user.UpdatedAt), nil
+}
+
+func (r *Repository) MarkEmailVerified(ctx context.Context, id string) (User, error) {
+	uuid, err := parseUUID(id)
+	if err != nil {
+		return User{}, ErrNotFound
+	}
+
+	user, err := r.queries.MarkEmailVerified(ctx, uuid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return User{}, ErrNotFound
+		}
+		return User{}, err
+	}
+
+	return publicUserFromFields(user.ID, user.Name, user.Username, user.Email, user.EmailVerifiedAt, user.VerificationDeadline, user.CreatedAt, user.UpdatedAt), nil
+}
+
+func (r *Repository) RevokeAllUserSessions(ctx context.Context, userID string) error {
+	uuid, err := parseUUID(userID)
+	if err != nil {
+		return ErrNotFound
+	}
+
+	return r.queries.RevokeAllUserSessions(ctx, uuid)
+}
+
+func (r *Repository) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
+	uuid, err := parseUUID(userID)
+	if err != nil {
+		return ErrNotFound
+	}
+
+	return r.queries.UpdateUserPassword(ctx, sqlc.UpdateUserPasswordParams{
+		ID:           uuid,
+		PasswordHash: passwordHash,
+	})
 }
 
 func privateUserFromFields(
@@ -134,17 +173,15 @@ func privateUserFromFields(
 	username string,
 	email string,
 	passwordHash string,
+	emailVerifiedAt pgtype.Timestamptz,
+	verificationDeadline pgtype.Timestamptz,
 	createdAt pgtype.Timestamptz,
 	updatedAt pgtype.Timestamptz,
 ) PrivateUser {
 	return PrivateUser{
-		User:         publicUserFromFields(id, name, username, email, createdAt, updatedAt),
+		User:         publicUserFromFields(id, name, username, email, emailVerifiedAt, verificationDeadline, createdAt, updatedAt),
 		PasswordHash: passwordHash,
 	}
-}
-
-func publicUserFromSQLC(user sqlc.User) User {
-	return publicUserFromFields(user.ID, user.Name, user.Username, user.Email, user.CreatedAt, user.UpdatedAt)
 }
 
 func publicUserFromFields(
@@ -152,16 +189,32 @@ func publicUserFromFields(
 	name string,
 	username string,
 	email string,
+	emailVerifiedAt pgtype.Timestamptz,
+	verificationDeadline pgtype.Timestamptz,
 	createdAt pgtype.Timestamptz,
 	updatedAt pgtype.Timestamptz,
 ) User {
+	var verifiedAt *time.Time
+	if emailVerifiedAt.Valid {
+		t := emailVerifiedAt.Time
+		verifiedAt = &t
+	}
+
+	var deadline *time.Time
+	if verificationDeadline.Valid {
+		t := verificationDeadline.Time
+		deadline = &t
+	}
+
 	return User{
-		ID:        formatUUID(id),
-		Name:      name,
-		Username:  username,
-		Email:     email,
-		CreatedAt: createdAt.Time,
-		UpdatedAt: updatedAt.Time,
+		ID:                   formatUUID(id),
+		Name:                 name,
+		Username:             username,
+		Email:                email,
+		EmailVerifiedAt:      verifiedAt,
+		VerificationDeadline: deadline,
+		CreatedAt:            createdAt.Time,
+		UpdatedAt:            updatedAt.Time,
 	}
 }
 

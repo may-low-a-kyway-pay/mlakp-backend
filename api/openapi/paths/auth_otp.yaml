@@ -1,0 +1,164 @@
+  /v1/auth/send-otp:
+    post:
+      tags:
+        - Auth
+      summary: Send OTP to email
+      description: Sends a 6-digit OTP to the specified email for verification or password reset.
+      operationId: sendOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendOTPRequest"
+            example:
+              email: user@example.com
+              purpose: signup
+      responses:
+        "200":
+          description: OTP sent successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+              example:
+                success: true
+                data:
+                  message: OTP sent successfully
+                  expires_at: "2026-05-02T12:25:00Z"
+                  purpose: signup
+        "400":
+          description: Invalid email or purpose.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already registered (for signup purpose).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
+        "429":
+          description: Rate limit exceeded or cooldown active.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/auth/verify-otp:
+    post:
+      tags:
+        - Auth
+      summary: Verify OTP
+      description: Verifies the OTP code and completes the action (signup verification or password reset verification).
+      operationId: verifyOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyOTPRequest"
+            example:
+              email: user@example.com
+              otp: "123456"
+              purpose: signup
+      responses:
+        "200":
+          description: OTP verified successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Invalid or expired OTP.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/auth/reset-password:
+    post:
+      tags:
+        - Auth
+      summary: Reset password with OTP
+      description: Verifies OTP and resets the user's password. Revokes all existing sessions.
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+            example:
+              email: user@example.com
+              otp: "123456"
+              new_password: newpassword123
+      responses:
+        "200":
+          description: Password reset successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+              example:
+                success: true
+                data:
+                  message: Password reset successfully
+        "400":
+          description: Invalid request or OTP.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /v1/auth/send-otp/account:
+    post:
+      tags:
+        - Auth
+      summary: Send OTP to authenticated user's email
+      description: Sends a password reset OTP to the currently authenticated user's email.
+      operationId: sendOTPForAccount
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OTP sent successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+              example:
+                success: true
+                data:
+                  message: OTP sent successfully
+                  expires_at: "2026-05-02T12:25:00Z"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          $ref: "#/components/responses/RequestBodyTooLarge"
+        "429":
+          description: Rate limit exceeded or cooldown active.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"

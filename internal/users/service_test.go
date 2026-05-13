@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 func TestServiceRegisterNormalizesEmailAndHashesPassword(t *testing.T) {
@@ -145,6 +146,19 @@ func (s *fakeStore) SearchByUsername(_ context.Context, query string, _ int32) (
 
 func (s *fakeStore) UpdateUsername(_ context.Context, id, username string) (User, error) {
 	return User{ID: id, Username: username}, nil
+}
+
+func (s *fakeStore) MarkEmailVerified(_ context.Context, id string) (User, error) {
+	now := time.Now()
+	return User{ID: id, EmailVerifiedAt: &now}, nil
+}
+
+func (s *fakeStore) RevokeAllUserSessions(_ context.Context, userID string) error {
+	return nil
+}
+
+func (s *fakeStore) UpdatePassword(_ context.Context, userID, passwordHash string) error {
+	return nil
 }
 
 type fakeHasher struct{}

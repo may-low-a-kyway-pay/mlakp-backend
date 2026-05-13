@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"time"
 
 	"mlakp-backend/internal/auth"
 	"mlakp-backend/internal/httpapi/middleware"
@@ -21,6 +22,7 @@ type AuthHandler struct {
 	users        *users.Service
 	tokenManager *auth.TokenManager
 	sessions     *sessions.Service
+	usersService *users.Service
 }
 
 type authUserResponse struct {
@@ -31,11 +33,14 @@ type authUserResponse struct {
 }
 
 type tokenResponse struct {
-	AccessToken  string           `json:"access_token"`
-	RefreshToken string           `json:"refresh_token"`
-	TokenType    string           `json:"token_type"`
-	ExpiresAt    string           `json:"expires_at"`
-	User         authUserResponse `json:"user"`
+	AccessToken          string           `json:"access_token"`
+	RefreshToken         string           `json:"refresh_token"`
+	TokenType            string           `json:"token_type"`
+	ExpiresAt            string           `json:"expires_at"`
+	User                 authUserResponse `json:"user"`
+	VerificationWarning  string           `json:"verification_warning,omitempty"`
+	VerificationDeadline *time.Time       `json:"verification_deadline,omitempty"`
+	VerificationStatus   string           `json:"verification_status,omitempty"`
 }
 
 type refreshResponse struct {
@@ -113,6 +118,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if user.EmailVerifiedAt == nil {
+		response.Error(w, http.StatusForbidden, "email_not_verified", "Please verify your email before logging in")
+		return
+	}
+
 	session, refreshToken, err := h.sessions.Create(r.Context(), user.ID)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
@@ -125,14 +135,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeAuthNoStoreHeaders(w)
-	response.Success(w, http.StatusOK, tokenResponse{
+	resp := tokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
 		ExpiresAt:    expiresAt.Format(timeFormatRFC3339),
 		User:         toAuthUserResponse(user),
-	})
+	}
+
+	writeAuthNoStoreHeaders(w)
+	response.Success(w, http.StatusOK, resp)
 }
 
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {

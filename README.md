@@ -1,6 +1,6 @@
 # MLAKP Backend
 
-Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation in local/test mode, rate-limited user registration/login/refresh, strict JSON request decoding, session-backed logout, authenticated current-user/profile update endpoints, username search, authenticated group creation, listing, details, member management by username, expense creation/detail/listing, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, current-user debt listing, payment listing/marking/bulk marking/review, and dashboard snapshots.
+Go backend for the MLAKP shared expense API. The current implementation exposes health checks, OpenAPI documentation in local/test mode, rate-limited user registration/login/refresh, email OTP verification with 7-day grace period, password reset via OTP, session-backed logout, authenticated current-user/profile update endpoints, username search, authenticated group creation, listing, details, member management by username, expense creation/detail/listing, debtor-only debt acceptance/rejection, owner review/resend for rejected debts, current-user debt listing, payment listing/marking/bulk marking/review, and dashboard snapshots.
 
 ## Requirements
 
@@ -87,6 +87,16 @@ READ_TIMEOUT=5s
 WRITE_TIMEOUT=10s
 IDLE_TIMEOUT=60s
 SHUTDOWN_TIMEOUT=10s
+
+POSTMARK_API_KEY=your-postmark-api-key
+POSTMARK_FROM_EMAIL=no-reply@ponypigeon.com
+POSTMARK_FROM_NAME=PonyPigeon
+
+OTP_EXPIRY_MINUTES=10
+OTP_REQUEST_COOLDOWN=60
+OTP_MAX_ATTEMPTS=5
+OTP_REQUESTS_PER_WINDOW=3
+OTP_REQUEST_WINDOW_MINS=10
 ```
 
 The default `DATABASE_URL` expects this local PostgreSQL database:
@@ -192,12 +202,20 @@ To roll back one migration:
 make migrate-down
 ```
 
+<<<<<<< Updated upstream
 To intentionally wipe all database objects and data before replaying migrations from scratch:
 
 ```sh
 make reset-db CONFIRM_RESET=reset
 make migrate-up
 ```
+=======
+The seventh migration adds:
+
+- `email_verifications` table for OTP storage
+- `email_verified_at` column on users
+- `verification_deadline` column on users
+>>>>>>> Stashed changes
 
 ## Run The API
 
@@ -409,7 +427,61 @@ The payments list returns records where the current user is either payer or rece
 
 The dashboard response includes `you_owe`, `you_get`, `person_balances`, and an `unsettled_balances` preview with up to five pending or active balances that still have remaining amount. The preview prioritizes pending debts where the current user is the debtor before regular recent balances, so accept/reject tasks stay visible. `person_balances` groups active accepted or partially settled balances by counterparty and direction, and `has_pending_payment` tells clients when at least one debt in that person balance already has a payment waiting for creditor review. Each preview item includes the source expense title, counterparty user id/name/username, remaining amount, status, and whether the current user sees it as `owed` or `receivable`.
 
-Refresh the access token:
+## Email OTP Verification
+
+After registration, users must verify their email within a 7-day grace period. Sensitive actions (create expense, create group, add member, create payment) are blocked until verified.
+
+**Send OTP for signup verification:**
+```sh
+curl -s -X POST http://localhost:8080/v1/auth/send-otp \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "thomas@example.com",
+    "purpose": "signup"
+  }'
+```
+
+**Verify OTP and complete signup (returns tokens):**
+```sh
+curl -s -X POST http://localhost:8080/v1/auth/verify-otp \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "thomas@example.com",
+    "otp": "123456",
+    "purpose": "signup"
+  }'
+```
+
+**Password Reset Flow:**
+
+Request password reset OTP:
+```sh
+curl -s -X POST http://localhost:8080/v1/auth/send-otp \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "thomas@example.com",
+    "purpose": "password_reset"
+  }'
+```
+
+Reset password (verifies OTP and revokes all sessions):
+```sh
+curl -s -X POST http://localhost:8080/v1/auth/reset-password \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "thomas@example.com",
+    "otp": "123456",
+    "new_password": "newpassword123"
+  }'
+```
+
+**Authenticated password reset (sends OTP to logged-in user's email):**
+```sh
+curl -s -X POST http://localhost:8080/v1/auth/send-otp/account \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+## Refresh the access token:
 
 ```sh
 curl -s -X POST http://localhost:8080/v1/auth/refresh \
