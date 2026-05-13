@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"mlakp-backend/internal/httpapi/middleware"
 	"mlakp-backend/internal/httpapi/response"
@@ -15,6 +16,16 @@ type UserHandler struct {
 
 func NewUserHandler(users *users.Service) *UserHandler {
 	return &UserHandler{users: users}
+}
+
+type userMeResponse struct {
+	ID                   string     `json:"id"`
+	Name                 string     `json:"name"`
+	Username             string     `json:"username"`
+	Email                string     `json:"email"`
+	EmailVerifiedAt      *time.Time `json:"email_verified_at"`
+	VerificationDeadline *time.Time `json:"verification_deadline"`
+	VerificationStatus   string     `json:"verification_status"`
 }
 
 func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
@@ -34,8 +45,21 @@ func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.Success(w, http.StatusOK, map[string]authUserResponse{
-		"user": toAuthUserResponse(user),
+	verificationStatus := h.users.GetVerificationStatus(&user)
+
+	resp := userMeResponse{
+		ID:                   user.ID,
+		Name:                 user.Name,
+		Username:             user.Username,
+		Email:                user.Email,
+		EmailVerifiedAt:      user.EmailVerifiedAt,
+		VerificationDeadline: user.VerificationDeadline,
+		VerificationStatus:   verificationStatus.Status,
+	}
+
+	response.Success(w, http.StatusOK, map[string]any{
+		"user":           resp,
+		"days_remaining": verificationStatus.DaysRemaining,
 	})
 }
 

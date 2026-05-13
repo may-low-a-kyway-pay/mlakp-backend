@@ -21,6 +21,14 @@ type Store interface {
 	GetActiveByID(ctx context.Context, id string) (Session, error)
 	RotateRefreshToken(ctx context.Context, oldRefreshTokenHash, newRefreshTokenHash string) (Session, error)
 	Revoke(ctx context.Context, id string) error
+	RevokeAllForUser(ctx context.Context, userID string) error
+}
+
+type AccessTokenResult struct {
+	AccessToken  string
+	ExpiresAt    time.Time
+	Session      Session
+	RefreshToken string
 }
 
 type Service struct {
@@ -96,6 +104,18 @@ func (s *Service) Revoke(ctx context.Context, sessionID string) error {
 	}
 
 	return s.store.Revoke(ctx, sessionID)
+}
+
+func (s *Service) RevokeAllForUser(ctx context.Context, userID string) error {
+	if strings.TrimSpace(userID) == "" {
+		return ErrInvalidSession
+	}
+
+	return s.store.RevokeAllForUser(ctx, userID)
+}
+
+func (s *Service) CreateForUser(ctx context.Context, userID string) (Session, string, error) {
+	return s.Create(ctx, userID)
 }
 
 func newRefreshToken() (string, string, error) {

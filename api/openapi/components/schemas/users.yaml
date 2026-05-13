@@ -14,9 +14,56 @@
           additionalProperties: false
           required:
             - user
+            - days_remaining
           properties:
             user:
-              $ref: "#/components/schemas/User"
+              $ref: "#/components/schemas/UserWithVerification"
+            days_remaining:
+              type: integer
+              description: Number of days remaining in the verification grace period.
+    UserWithVerification:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - username
+        - email
+        - verification_status
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: "^[a-z0-9_]+$"
+        email:
+          type: string
+          format: email
+        email_verified_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when email was verified. Null if not verified.
+        verification_deadline:
+          type: string
+          format: date-time
+          nullable: true
+          description: Deadline for email verification (7 days from registration).
+        verification_status:
+          type: string
+          enum:
+            - verified
+            - pending
+            - pending_grace_period
+            - expired
+          description: Current email verification status.
     User:
       type: object
       additionalProperties: false

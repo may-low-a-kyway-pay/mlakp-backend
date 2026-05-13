@@ -12,6 +12,7 @@ import (
 	"mlakp-backend/internal/httpapi/middleware"
 	"mlakp-backend/internal/httpapi/response"
 	"mlakp-backend/internal/sessions"
+	"mlakp-backend/internal/users"
 )
 
 type RouterDeps struct {
@@ -23,6 +24,8 @@ type RouterDeps struct {
 	PaymentHandler      *handlers.PaymentHandler
 	DashboardHandler    *handlers.DashboardHandler
 	NotificationHandler *handlers.NotificationHandler
+	OTPHandler          *handlers.OTPHandler
+	UsersService        *users.Service
 	TokenManager        *auth.TokenManager
 	SessionService      *sessions.Service
 	AppEnv              string
@@ -58,6 +61,19 @@ func NewRouter(logger *slog.Logger, deps RouterDeps) http.Handler {
 		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
 		mux.Handle("POST /v1/auth/logout", authenticated(http.HandlerFunc(deps.AuthHandler.Logout)))
 	}
+	if deps.OTPHandler != nil {
+		authRateLimiter := deps.AuthRateLimiter
+		if authRateLimiter == nil {
+			authRateLimiter = middleware.NewRateLimiter(20, time.Minute)
+		}
+		mux.Handle("POST /v1/auth/send-otp", authRateLimiter.Limit(http.HandlerFunc(deps.OTPHandler.SendOTP)))
+		mux.Handle("POST /v1/auth/verify-otp", authRateLimiter.Limit(http.HandlerFunc(deps.OTPHandler.VerifyOTP)))
+		mux.Handle("POST /v1/auth/reset-password", authRateLimiter.Limit(http.HandlerFunc(deps.OTPHandler.ResetPassword)))
+	}
+	if deps.OTPHandler != nil && deps.TokenManager != nil {
+		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
+		mux.Handle("POST /v1/auth/send-otp/account", authenticated(http.HandlerFunc(deps.OTPHandler.SendOTPForAccount)))
+	}
 	if deps.UserHandler != nil && deps.TokenManager != nil {
 		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
 		mux.Handle("GET /v1/users/me", authenticated(http.HandlerFunc(deps.UserHandler.Me)))
@@ -66,14 +82,16 @@ func NewRouter(logger *slog.Logger, deps RouterDeps) http.Handler {
 	}
 	if deps.GroupHandler != nil && deps.TokenManager != nil {
 		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
-		mux.Handle("POST /v1/groups", authenticated(http.HandlerFunc(deps.GroupHandler.Create)))
+		requireVerifiedEmail := middleware.NewEmailVerificationMiddleware(deps.UsersService).RequireVerifiedEmail
+		mux.Handle("POST /v1/groups", authenticated(requireVerifiedEmail(http.HandlerFunc(deps.GroupHandler.Create))))
 		mux.Handle("GET /v1/groups", authenticated(http.HandlerFunc(deps.GroupHandler.List)))
 		mux.Handle("GET /v1/groups/{groupID}", authenticated(http.HandlerFunc(deps.GroupHandler.Get)))
-		mux.Handle("POST /v1/groups/{groupID}/members", authenticated(http.HandlerFunc(deps.GroupHandler.AddMember)))
+		mux.Handle("POST /v1/groups/{groupID}/members", authenticated(requireVerifiedEmail(http.HandlerFunc(deps.GroupHandler.AddMember))))
 	}
 	if deps.ExpenseHandler != nil && deps.TokenManager != nil {
 		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
-		mux.Handle("POST /v1/expenses", authenticated(http.HandlerFunc(deps.ExpenseHandler.Create)))
+		requireVerifiedEmail := middleware.NewEmailVerificationMiddleware(deps.UsersService).RequireVerifiedEmail
+		mux.Handle("POST /v1/expenses", authenticated(requireVerifiedEmail(http.HandlerFunc(deps.ExpenseHandler.Create))))
 		mux.Handle("GET /v1/expenses/{expenseID}", authenticated(http.HandlerFunc(deps.ExpenseHandler.Get)))
 		mux.Handle("GET /v1/groups/{groupID}/expenses", authenticated(http.HandlerFunc(deps.ExpenseHandler.ListByGroup)))
 	}
@@ -85,9 +103,10 @@ func NewRouter(logger *slog.Logger, deps RouterDeps) http.Handler {
 	}
 	if deps.PaymentHandler != nil && deps.TokenManager != nil {
 		authenticated := middleware.Authenticate(deps.TokenManager, deps.SessionService)
+		requireVerifiedEmail := middleware.NewEmailVerificationMiddleware(deps.UsersService).RequireVerifiedEmail
 		mux.Handle("GET /v1/payments", authenticated(http.HandlerFunc(deps.PaymentHandler.List)))
-		mux.Handle("POST /v1/payments/bulk", authenticated(http.HandlerFunc(deps.PaymentHandler.BulkMark)))
-		mux.Handle("POST /v1/debts/{debtID}/payments", authenticated(http.HandlerFunc(deps.PaymentHandler.Mark)))
+		mux.Handle("POST /v1/payments/bulk", authenticated(requireVerifiedEmail(http.HandlerFunc(deps.PaymentHandler.BulkMark))))
+		mux.Handle("POST /v1/debts/{debtID}/payments", authenticated(requireVerifiedEmail(http.HandlerFunc(deps.PaymentHandler.Mark))))
 		mux.Handle("POST /v1/payments/{paymentID}", authenticated(http.HandlerFunc(deps.PaymentHandler.Update)))
 	}
 	if deps.DashboardHandler != nil && deps.TokenManager != nil {
@@ -164,7 +183,8 @@ func healthzHandler(w http.ResponseWriter, r *http.Request) {
 
 func readyzHandler(checker interface {
 	Ping(context.Context) error
-}) http.HandlerFunc {
+},
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if checker != nil {
 			// Readiness should fail quickly instead of tying up health probes.

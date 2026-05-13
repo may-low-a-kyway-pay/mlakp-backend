@@ -31,6 +31,16 @@ type Config struct {
 	WriteTimeout    time.Duration
 	IdleTimeout     time.Duration
 	ShutdownTimeout time.Duration
+
+	PostmarkAPIKey    string
+	PostmarkFromEmail string
+	PostmarkFromName  string
+
+	OTPExpiryMinutes     int
+	OTPRequestCooldown   int
+	OTPMaxAttempts       int
+	OTPRequestsPerWindow int
+	OTPRequestWindowMins int
 }
 
 func Load() (Config, error) {
@@ -108,6 +118,43 @@ func Load() (Config, error) {
 	cfg.WriteTimeout = parseDuration("WRITE_TIMEOUT")
 	cfg.IdleTimeout = parseDuration("IDLE_TIMEOUT")
 	cfg.ShutdownTimeout = parseDuration("SHUTDOWN_TIMEOUT")
+
+	cfg.PostmarkAPIKey = strings.TrimSpace(os.Getenv("POSTMARK_API_KEY"))
+	cfg.PostmarkFromEmail = strings.TrimSpace(os.Getenv("POSTMARK_FROM_EMAIL"))
+	cfg.PostmarkFromName = strings.TrimSpace(os.Getenv("POSTMARK_FROM_NAME"))
+
+	parsePositiveIntEnv := func(name string, defaultVal int) int {
+		value := strings.TrimSpace(os.Getenv(name))
+		if value == "" {
+			return defaultVal
+		}
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s must be a valid integer", name))
+			return defaultVal
+		}
+		if v <= 0 {
+			errs = append(errs, fmt.Errorf("%s must be greater than zero", name))
+			return defaultVal
+		}
+		return v
+	}
+
+	cfg.OTPExpiryMinutes = parsePositiveIntEnv("OTP_EXPIRY_MINUTES", 10)
+	cfg.OTPRequestCooldown = parsePositiveIntEnv("OTP_REQUEST_COOLDOWN", 60)
+	cfg.OTPMaxAttempts = parsePositiveIntEnv("OTP_MAX_ATTEMPTS", 5)
+	cfg.OTPRequestsPerWindow = parsePositiveIntEnv("OTP_REQUESTS_PER_WINDOW", 3)
+	cfg.OTPRequestWindowMins = parsePositiveIntEnv("OTP_REQUEST_WINDOW_MINS", 10)
+
+	if cfg.PostmarkAPIKey == "" {
+		errs = append(errs, errors.New("POSTMARK_API_KEY is required"))
+	}
+	if cfg.PostmarkFromEmail == "" {
+		errs = append(errs, errors.New("POSTMARK_FROM_EMAIL is required"))
+	}
+	if cfg.PostmarkFromName == "" {
+		cfg.PostmarkFromName = "PonyPigeon"
+	}
 
 	return cfg, errors.Join(errs...)
 }

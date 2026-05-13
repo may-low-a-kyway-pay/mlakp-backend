@@ -10,6 +10,7 @@ import (
 var pathFiles = []string{
 	"health.yaml",
 	"auth.yaml",
+	"auth_otp.yaml",
 	"users.yaml",
 	"groups.yaml",
 	"expenses.yaml",

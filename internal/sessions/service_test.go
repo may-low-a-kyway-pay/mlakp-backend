@@ -149,6 +149,18 @@ func (s *fakeStore) Revoke(_ context.Context, id string) error {
 	return nil
 }
 
+func (s *fakeStore) RevokeAllForUser(_ context.Context, userID string) error {
+	s.init()
+	for id, session := range s.sessions {
+		if session.UserID == userID && session.RevokedAt == nil {
+			now := time.Now().UTC()
+			session.RevokedAt = &now
+			s.sessions[id] = session
+		}
+	}
+	return nil
+}
+
 func (s *fakeStore) init() {
 	if s.sessions == nil {
 		s.sessions = make(map[string]Session)

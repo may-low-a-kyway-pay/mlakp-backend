@@ -33,6 +33,20 @@ type Debt struct {
 	UpdatedAt            pgtype.Timestamptz
 }
 
+type EmailVerification struct {
+	ID            pgtype.UUID
+	UserID        pgtype.UUID
+	Email         string
+	Purpose       string
+	OtpHash       string
+	ExpiresAt     pgtype.Timestamptz
+	VerifiedAt    pgtype.Timestamptz
+	AttemptCount  int32
+	RequestCount  int32
+	LastRequestAt pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+}
+
 type Expense struct {
 	ID               pgtype.UUID
 	GroupID          pgtype.UUID
@@ -101,11 +115,13 @@ type Payment struct {
 }
 
 type User struct {
-	ID           pgtype.UUID
-	Name         string
-	Email        string
-	PasswordHash string
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	Username     string
+	ID                   pgtype.UUID
+	Name                 string
+	Email                string
+	PasswordHash         string
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+	Username             string
+	EmailVerifiedAt      pgtype.Timestamptz
+	VerificationDeadline pgtype.Timestamptz
 }

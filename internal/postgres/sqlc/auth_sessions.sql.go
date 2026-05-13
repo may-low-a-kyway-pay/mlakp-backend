@@ -61,6 +61,17 @@ func (q *Queries) GetActiveAuthSession(ctx context.Context, id pgtype.UUID) (Aut
 	return i, err
 }
 
+const revokeAllUserSessions = `-- name: RevokeAllUserSessions :exec
+UPDATE auth_sessions
+SET revoked_at = now()
+WHERE user_id = $1 AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokeAllUserSessions(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, revokeAllUserSessions, userID)
+	return err
+}
+
 const revokeAuthSession = `-- name: RevokeAuthSession :exec
 UPDATE auth_sessions
 SET revoked_at = now()

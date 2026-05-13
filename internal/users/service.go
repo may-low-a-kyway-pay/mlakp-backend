@@ -5,6 +5,7 @@ import (
 	"errors"
 	"regexp"
 	"strings"
+	"time"
 )
 
 var (
@@ -31,6 +32,13 @@ type Store interface {
 	GetByUsername(ctx context.Context, username string) (User, error)
 	SearchByUsername(ctx context.Context, query string, limit int32) ([]User, error)
 	UpdateUsername(ctx context.Context, id, username string) (User, error)
+	MarkEmailVerified(ctx context.Context, id string) (User, error)
+	RevokeAllUserSessions(ctx context.Context, userID string) error
+	UpdatePassword(ctx context.Context, userID, passwordHash string) error
+}
+
+func (s *Service) GetByEmail(ctx context.Context, email string) (PrivateUser, error) {
+	return s.repository.GetByEmail(ctx, email)
 }
 
 type Service struct {
@@ -129,6 +137,61 @@ func (s *Service) UpdateUsername(ctx context.Context, id, username string) (User
 	}
 
 	return s.repository.UpdateUsername(ctx, id, username)
+}
+
+func (s *Service) MarkEmailVerified(ctx context.Context, userID string) (User, error) {
+	return s.repository.MarkEmailVerified(ctx, userID)
+}
+
+func (s *Service) UpdatePassword(ctx context.Context, userID, password string) error {
+	if len(password) < 8 {
+		return ErrInvalidPassword
+	}
+
+	passwordHash, err := s.passwordHasher.HashPassword(password)
+	if err != nil {
+		return err
+	}
+
+	return s.repository.UpdatePassword(ctx, userID, passwordHash)
+}
+
+func (s *Service) RevokeAllUserSessions(ctx context.Context, userID string) error {
+	return s.repository.RevokeAllUserSessions(ctx, userID)
+}
+
+func (s *Service) GetVerificationStatus(user *User) VerificationStatus {
+	if user.EmailVerifiedAt != nil {
+		return VerificationStatus{
+			IsVerified: true,
+			Status:     "verified",
+		}
+	}
+
+	if user.VerificationDeadline == nil {
+		return VerificationStatus{
+			IsVerified: false,
+			Status:     "pending",
+		}
+	}
+
+	remaining := time.Until(*user.VerificationDeadline)
+	daysRemaining := int(remaining.Hours() / 24)
+	if daysRemaining < 0 {
+		daysRemaining = 0
+	}
+
+	status := "pending_grace_period"
+	if remaining <= 0 {
+		status = "expired"
+	}
+
+	return VerificationStatus{
+		IsVerified:    false,
+		DaysRemaining: daysRemaining,
+		Deadline:      user.VerificationDeadline,
+		Status:        status,
+	}
 }
 
 func normalizeUsername(username string) string {

@@ -16,10 +16,12 @@ import (
 	"mlakp-backend/internal/config"
 	"mlakp-backend/internal/dashboard"
 	"mlakp-backend/internal/debts"
+	"mlakp-backend/internal/email"
 	"mlakp-backend/internal/expenses"
 	"mlakp-backend/internal/groups"
 	"mlakp-backend/internal/httpapi/handlers"
 	"mlakp-backend/internal/notifications"
+	"mlakp-backend/internal/otp"
 	"mlakp-backend/internal/payments"
 	"mlakp-backend/internal/postgres"
 	"mlakp-backend/internal/postgres/sqlc"
@@ -69,6 +71,22 @@ func main() {
 	dashboardRepository := dashboard.NewRepository(queries)
 	dashboardService := dashboard.NewService(dashboardRepository)
 
+	emailProvider := email.NewProvider(email.Config{
+		APIKey:    cfg.PostmarkAPIKey,
+		FromEmail: cfg.PostmarkFromEmail,
+		FromName:  cfg.PostmarkFromName,
+		Endpoint:  "https://api.postmarkapp.com/email",
+	})
+
+	otpRepository := otp.NewRepository(dbPool)
+	otpService := otp.NewService(otpRepository, otp.Config{
+		ExpiryMinutes:     cfg.OTPExpiryMinutes,
+		RequestCooldown:   cfg.OTPRequestCooldown,
+		MaxAttempts:       cfg.OTPMaxAttempts,
+		RequestsPerWindow: cfg.OTPRequestsPerWindow,
+		WindowMins:        cfg.OTPRequestWindowMins,
+	})
+
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%s", cfg.AppPort),
 		Handler: app.NewRouter(logger, app.RouterDeps{
@@ -80,6 +98,8 @@ func main() {
 			PaymentHandler:      handlers.NewPaymentHandler(paymentService),
 			DashboardHandler:    handlers.NewDashboardHandler(dashboardService),
 			NotificationHandler: handlers.NewNotificationHandler(notificationService, notificationHub, cfg.CORSOrigins),
+			OTPHandler:          handlers.NewOTPHandler(userService, otpService, emailProvider, sessionService, tokenManager),
+			UsersService:        userService,
 			TokenManager:        tokenManager,
 			SessionService:      sessionService,
 			AppEnv:              cfg.AppEnv,

@@ -497,7 +497,7 @@ Authentication requirements:
 - Revoke the current session on logout by setting `auth_sessions.revoked_at`.
 - Reject access tokens whose session is missing, expired, or revoked.
 - Auth register/login/refresh routes use in-process rate limiting. Production deployments with multiple replicas should still add an edge or shared limiter.
-- Password reset and email verification are outside MVP scope unless explicitly added.
+- Password reset and email verification use email OTPs. New users receive a 7-day verification grace period for authentication, but write actions with group, expense, and payment side effects require a verified email.
 
 HTTP security header requirements:
 - All responses include `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: no-referrer`.

@@ -104,21 +104,112 @@
           format: date-time
         user:
           $ref: "#/components/schemas/User"
-    RefreshTokenData:
+        verification_warning:
+          type: string
+          description: Present while the account is inside the email verification grace period.
+        verification_deadline:
+          type: string
+          format: date-time
+          nullable: true
+          description: Deadline for email verification.
+        verification_status:
+          type: string
+          enum:
+            - pending
+            - pending_grace_period
+            - expired
+          description: Current email verification status when the email is not verified.
+    SendOTPRequest:
       type: object
       additionalProperties: false
       required:
-        - access_token
-        - refresh_token
-        - token_type
-        - expires_at
+        - email
+        - purpose
       properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Email address to send OTP to.
+        purpose:
+          type: string
+          enum:
+            - signup
+            - password_reset
+          description: Purpose of the OTP request.
+    VerifyOTPRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - otp
+        - purpose
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        otp:
+          type: string
+          pattern: "^[0-9]{6}$"
+          description: 6-digit OTP code.
+        purpose:
+          type: string
+          enum:
+            - signup
+    ResetPasswordRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - otp
+        - new_password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        otp:
+          type: string
+          pattern: "^[0-9]{6}$"
+          description: 6-digit OTP code.
+        new_password:
+          type: string
+          format: password
+          minLength: 8
+          writeOnly: true
+    OTPResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+        - expires_at
+        - purpose
+      properties:
+        message:
+          type: string
+          example: OTP sent successfully
+        expires_at:
+          type: string
+          format: date-time
+        purpose:
+          type: string
+          enum:
+            - signup
+            - password_reset
+    OTPVerificationResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        verified:
+          type: boolean
+          example: true
         access_token:
           type: string
-          description: Short-lived HMAC-SHA256 signed access token.
+          description: Access token (only for signup verification that creates a session).
         refresh_token:
           type: string
-          description: Rotated opaque refresh token. Replaces the previous refresh token.
+          description: Refresh token (only for signup verification that creates a session).
         token_type:
           type: string
           enum:
@@ -126,3 +217,13 @@
         expires_at:
           type: string
           format: date-time
+        message:
+          type: string
+          example: Email verified successfully
+    PasswordResetResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        message:
+          type: string
+          example: Password reset successfully

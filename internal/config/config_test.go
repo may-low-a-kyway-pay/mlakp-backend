@@ -113,4 +113,7 @@ func setValidEnv(t *testing.T) {
 	t.Setenv("WRITE_TIMEOUT", "10s")
 	t.Setenv("IDLE_TIMEOUT", "60s")
 	t.Setenv("SHUTDOWN_TIMEOUT", "10s")
+	t.Setenv("POSTMARK_API_KEY", "test-api-key")
+	t.Setenv("POSTMARK_FROM_EMAIL", "noreply@test.com")
+	t.Setenv("POSTMARK_FROM_NAME", "Test App")
 }

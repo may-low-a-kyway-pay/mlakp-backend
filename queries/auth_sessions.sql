@@ -24,3 +24,8 @@ UPDATE auth_sessions
 SET revoked_at = now()
 WHERE id = $1
   AND revoked_at IS NULL;
+
+-- name: RevokeAllUserSessions :exec
+UPDATE auth_sessions
+SET revoked_at = now()
+WHERE user_id = $1 AND revoked_at IS NULL;

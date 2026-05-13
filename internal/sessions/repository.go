@@ -81,6 +81,15 @@ func (r *Repository) Revoke(ctx context.Context, id string) error {
 	return r.queries.RevokeAuthSession(ctx, sessionID)
 }
 
+func (r *Repository) RevokeAllForUser(ctx context.Context, userID string) error {
+	userUUID, err := parseUUID(userID)
+	if err != nil {
+		return ErrInvalidSession
+	}
+
+	return r.queries.RevokeAllUserSessions(ctx, userUUID)
+}
+
 func fromSQLC(session sqlc.AuthSession) Session {
 	var revokedAt *time.Time
 	if session.RevokedAt.Valid {
