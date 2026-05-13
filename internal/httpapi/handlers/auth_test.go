@@ -13,14 +13,56 @@ import (
 	"mlakp-backend/internal/users"
 )
 
-func TestLoginRejectsUnverifiedUser(t *testing.T) {
+func TestLoginAllowsUnverifiedUserInsideGracePeriod(t *testing.T) {
+	deadline := time.Now().Add(24 * time.Hour)
 	userStore := &authHandlerUserStore{
 		user: users.PrivateUser{
 			User: users.User{
-				ID:       "user-1",
-				Name:     "Thomas",
-				Username: "thomas",
-				Email:    "thomas@example.com",
+				ID:                   "user-1",
+				Name:                 "Thomas",
+				Username:             "thomas",
+				Email:                "thomas@example.com",
+				VerificationDeadline: &deadline,
+			},
+			PasswordHash: "hash:password123",
+		},
+	}
+	sessionStore := &authHandlerSessionStore{}
+	handler := NewAuthHandler(
+		users.NewService(userStore, authHandlerHasher{}),
+		auth.NewTokenManager("issuer", "audience", "secret", time.Minute),
+		sessions.NewService(sessionStore, time.Hour),
+	)
+
+	request := httptest.NewRequest(http.MethodPost, "/v1/auth/login", strings.NewReader(`{
+		"email": "thomas@example.com",
+		"password": "password123"
+	}`))
+	response := httptest.NewRecorder()
+
+	handler.Login(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("response.Code = %d, want %d; body = %s", response.Code, http.StatusOK, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"verification_status":"pending_grace_period"`) {
+		t.Fatalf("response.Body = %q, want pending_grace_period status", response.Body.String())
+	}
+	if !sessionStore.created {
+		t.Fatal("Login did not create a session for an unverified user inside grace period")
+	}
+}
+
+func TestLoginRejectsUnverifiedUserAfterGracePeriod(t *testing.T) {
+	deadline := time.Now().Add(-time.Hour)
+	userStore := &authHandlerUserStore{
+		user: users.PrivateUser{
+			User: users.User{
+				ID:                   "user-1",
+				Name:                 "Thomas",
+				Username:             "thomas",
+				Email:                "thomas@example.com",
+				VerificationDeadline: &deadline,
 			},
 			PasswordHash: "hash:password123",
 		},
@@ -43,11 +85,11 @@ func TestLoginRejectsUnverifiedUser(t *testing.T) {
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("response.Code = %d, want %d", response.Code, http.StatusForbidden)
 	}
-	if !strings.Contains(response.Body.String(), `"code":"email_not_verified"`) {
-		t.Fatalf("response.Body = %q, want email_not_verified error", response.Body.String())
+	if !strings.Contains(response.Body.String(), `"code":"email_verification_required"`) {
+		t.Fatalf("response.Body = %q, want email_verification_required error", response.Body.String())
 	}
 	if sessionStore.created {
-		t.Fatal("Login created a session for an unverified user")
+		t.Fatal("Login created a session for an unverified user after grace period")
 	}
 }
 
@@ -89,7 +131,8 @@ func TestLoginAllowsVerifiedUser(t *testing.T) {
 }
 
 type authHandlerUserStore struct {
-	user users.PrivateUser
+	user          users.PrivateUser
+	getByEmailErr error
 }
 
 func (s *authHandlerUserStore) Create(ctx context.Context, name, username, email, passwordHash string) (users.PrivateUser, error) {
@@ -97,11 +140,14 @@ func (s *authHandlerUserStore) Create(ctx context.Context, name, username, email
 }
 
 func (s *authHandlerUserStore) GetByEmail(ctx context.Context, email string) (users.PrivateUser, error) {
+	if s.getByEmailErr != nil {
+		return users.PrivateUser{}, s.getByEmailErr
+	}
 	return s.user, nil
 }
 
 func (s *authHandlerUserStore) GetByID(ctx context.Context, id string) (users.User, error) {
-	return users.User{}, nil
+	return s.user.User, nil
 }
 
 func (s *authHandlerUserStore) GetByUsername(ctx context.Context, username string) (users.User, error) {

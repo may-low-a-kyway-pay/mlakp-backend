@@ -83,7 +83,10 @@ func (h *OTPHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
 		_, err := h.usersService.GetByEmail(r.Context(), request.Email)
 		if err != nil {
 			if err == users.ErrNotFound || err == users.ErrEmailConflict {
-				response.Error(w, http.StatusBadRequest, "email_not_found", "No account found with this email")
+				response.Success(w, http.StatusOK, map[string]interface{}{
+					"message": "If an account exists for this email, an OTP has been sent",
+					"purpose": request.Purpose,
+				})
 				return
 			}
 			response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")

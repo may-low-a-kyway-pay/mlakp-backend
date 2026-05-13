@@ -380,7 +380,7 @@ paths:
       tags:
         - Auth
       summary: Verify OTP
-      description: Verifies the OTP code and completes the action (signup verification or password reset verification).
+      description: Verifies the signup OTP and completes email verification. Use /v1/auth/reset-password for password reset OTPs.
       operationId: verifyOTP
       requestBody:
         required: true
@@ -1855,6 +1855,23 @@ components:
         expires_at:
           type: string
           format: date-time
+        user:
+          $ref: "#/components/schemas/User"
+        verification_warning:
+          type: string
+          description: Present while the account is inside the email verification grace period.
+        verification_deadline:
+          type: string
+          format: date-time
+          nullable: true
+          description: Deadline for email verification.
+        verification_status:
+          type: string
+          enum:
+            - pending
+            - pending_grace_period
+            - expired
+          description: Current email verification status when the email is not verified.
     SendOTPRequest:
       type: object
       additionalProperties: false
@@ -1893,7 +1910,6 @@ components:
           type: string
           enum:
             - signup
-            - password_reset
     ResetPasswordRequest:
       type: object
       additionalProperties: false
@@ -2028,6 +2044,7 @@ components:
             - verified
             - pending
             - pending_grace_period
+            - expired
           description: Current email verification status.
     User:
       type: object

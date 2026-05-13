@@ -54,7 +54,7 @@
       tags:
         - Auth
       summary: Verify OTP
-      description: Verifies the OTP code and completes the action (signup verification or password reset verification).
+      description: Verifies the signup OTP and completes email verification. Use /v1/auth/reset-password for password reset OTPs.
       operationId: verifyOTP
       requestBody:
         required: true

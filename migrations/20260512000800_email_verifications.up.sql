@@ -30,3 +30,7 @@ CREATE INDEX idx_email_verifications_active
 ALTER TABLE users
     ADD COLUMN email_verified_at timestamptz NULL,
     ADD COLUMN verification_deadline timestamptz NULL;
+
+UPDATE users
+SET email_verified_at = now()
+WHERE email_verified_at IS NULL;

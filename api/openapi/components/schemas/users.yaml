@@ -62,6 +62,7 @@
             - verified
             - pending
             - pending_grace_period
+            - expired
           description: Current email verification status.
     User:
       type: object

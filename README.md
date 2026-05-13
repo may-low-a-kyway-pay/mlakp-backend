@@ -429,7 +429,7 @@ The dashboard response includes `you_owe`, `you_get`, `person_balances`, and an 
 
 ## Email OTP Verification
 
-After registration, users must verify their email within a 7-day grace period. Sensitive actions (create expense, create group, add member, create payment) are blocked until verified.
+After registration, users must verify their email within a 7-day grace period to keep authenticating. Sensitive actions (create expense, create group, add member, create payment) are blocked until verified.
 
 **Send OTP for signup verification:**
 ```sh

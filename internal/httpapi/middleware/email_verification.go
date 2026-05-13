@@ -2,15 +2,10 @@ package middleware
 
 import (
 	"net/http"
-	"time"
 
 	"mlakp-backend/internal/httpapi/response"
 	"mlakp-backend/internal/users"
 )
-
-type EmailVerificationChecker interface {
-	GetByID(ctx any, id string) (users.User, error)
-}
 
 type EmailVerificationMiddleware struct {
 	usersService *users.Service
@@ -35,10 +30,8 @@ func (m *EmailVerificationMiddleware) RequireVerifiedEmail(next http.Handler) ht
 		}
 
 		if user.EmailVerifiedAt == nil {
-			if user.VerificationDeadline != nil && time.Now().After(*user.VerificationDeadline) {
-				response.Error(w, http.StatusForbidden, "email_verification_required", "Please verify your email to continue. Check your inbox or request a new verification code.")
-				return
-			}
+			response.Error(w, http.StatusForbidden, "email_verification_required", "Please verify your email to continue. Check your inbox or request a new verification code.")
+			return
 		}
 
 		next.ServeHTTP(w, r)

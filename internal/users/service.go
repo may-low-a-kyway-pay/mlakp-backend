@@ -175,16 +175,22 @@ func (s *Service) GetVerificationStatus(user *User) VerificationStatus {
 		}
 	}
 
-	daysRemaining := int(time.Until(*user.VerificationDeadline).Hours() / 24)
+	remaining := time.Until(*user.VerificationDeadline)
+	daysRemaining := int(remaining.Hours() / 24)
 	if daysRemaining < 0 {
 		daysRemaining = 0
+	}
+
+	status := "pending_grace_period"
+	if remaining <= 0 {
+		status = "expired"
 	}
 
 	return VerificationStatus{
 		IsVerified:    false,
 		DaysRemaining: daysRemaining,
 		Deadline:      user.VerificationDeadline,
-		Status:        "pending_grace_period",
+		Status:        status,
 	}
 }
 

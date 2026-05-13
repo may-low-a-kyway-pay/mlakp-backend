@@ -22,7 +22,6 @@ type AuthHandler struct {
 	users        *users.Service
 	tokenManager *auth.TokenManager
 	sessions     *sessions.Service
-	usersService *users.Service
 }
 
 type authUserResponse struct {
@@ -89,13 +88,15 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeAuthNoStoreHeaders(w)
-	response.Success(w, http.StatusCreated, tokenResponse{
+	resp := tokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
 		ExpiresAt:    expiresAt.Format(timeFormatRFC3339),
 		User:         toAuthUserResponse(user),
-	})
+	}
+	addVerificationFields(&resp, h.users.GetVerificationStatus(&user))
+	response.Success(w, http.StatusCreated, resp)
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -118,8 +119,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if user.EmailVerifiedAt == nil {
-		response.Error(w, http.StatusForbidden, "email_not_verified", "Please verify your email before logging in")
+	verificationStatus := h.users.GetVerificationStatus(&user)
+	if verificationStatus.Status == "expired" {
+		response.Error(w, http.StatusForbidden, "email_verification_required", "Please verify your email before logging in")
 		return
 	}
 
@@ -142,6 +144,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt:    expiresAt.Format(timeFormatRFC3339),
 		User:         toAuthUserResponse(user),
 	}
+	addVerificationFields(&resp, verificationStatus)
 
 	writeAuthNoStoreHeaders(w)
 	response.Success(w, http.StatusOK, resp)
@@ -163,6 +166,16 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
+		return
+	}
+
+	user, err := h.users.GetByID(r.Context(), session.UserID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "internal_error", "Internal server error")
+		return
+	}
+	if h.users.GetVerificationStatus(&user).Status == "expired" {
+		response.Error(w, http.StatusForbidden, "email_verification_required", "Please verify your email before refreshing your session")
 		return
 	}
 
@@ -267,6 +280,17 @@ func toAuthUserResponse(user users.User) authUserResponse {
 		Name:     user.Name,
 		Username: user.Username,
 		Email:    user.Email,
+	}
+}
+
+func addVerificationFields(resp *tokenResponse, status users.VerificationStatus) {
+	if status.IsVerified {
+		return
+	}
+	resp.VerificationStatus = status.Status
+	resp.VerificationDeadline = status.Deadline
+	if status.Status == "pending_grace_period" {
+		resp.VerificationWarning = "Please verify your email to keep account access after the grace period."
 	}
 }
 
